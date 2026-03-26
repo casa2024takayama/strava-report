@@ -1,0 +1,14 @@
+# 認証情報・シークレット（絶対にコミットしない）
+.env
+strava_tokens.json
+
+# キャッシュ
+.strava_cache/
+__pycache__/
+*.pyc
+
+# ログ
+*.log
+
+# macOS
+.DS_Store
