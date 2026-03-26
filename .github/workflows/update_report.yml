@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  secrets: write   # リフレッシュトークン更新用
 
 jobs:
   update:
