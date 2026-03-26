@@ -19,17 +19,17 @@ _HEIGHT_CM    = 174
 _NEXT_RACE    = date(2026, 3, 28)
 _RACE_NAME    = "ふくい桜マラソン"
 _MONTH_GOAL   = 200   # km/月
-_VO2MAX       = 58    # Garmin 計測 VO2Max
+_VO2MAX       = 59    # Garmin 計測 VO2Max（HTML上でスライダー変更可能）
 _CURRENT_PB   = "3:21:00"   # フルマラソン自己ベスト（非表示）
 _CURRENT_PB_SEC = 3*3600 + 21*60  # 12060 sec
 _GOAL_1_SEC   = 3*3600 + 10*60   # Sub 3:10
 _GOAL_ULT_SEC = 3*3600            # Sub 3:00
-# VDOT 58 ダニエルズ基準ペース（秒/km）
-_E_LO, _E_HI  = 293, 315   # 4:53-5:15/km  Easy
-_M_PACE       = 266         # 4:26/km       Marathon
-_T_LO, _T_HI  = 247, 254   # 4:07-4:14/km  Threshold
-_I_PACE       = 223         # 3:43/km       Interval
-_R_PACE       = 209         # 3:29/km       Repetition
+# VDOT 59 ダニエルズ基準ペース（秒/km）※スライダーで動的変更
+_E_LO, _E_HI  = 291, 312   # 4:51-5:12/km  Easy
+_M_PACE       = 264         # 4:24/km       Marathon
+_T_LO, _T_HI  = 244, 251   # 4:04-4:11/km  Threshold
+_I_PACE       = 221         # 3:41/km       Interval
+_R_PACE       = 207         # 3:27/km       Repetition
 
 # ── ユーティリティ ─────────────────────────────────────────────────────────
 def parse_time_sec(t):
@@ -92,85 +92,33 @@ def load_gps():
 def build_performance_profile():
     """VO2Max・VDOT・目標タイム・練習ペース・Sub-3ロードマップ HTML"""
 
-    # VDOT 換算（PB ベース）— PB 3:21 ≈ VDOT 52
-    vdot_pb   = 52
-    vdot_vo2  = _VO2MAX   # 58  ← Garmin 計測
-    vdot_gap  = vdot_vo2 - vdot_pb   # 6 ポイント
-
-    # 目標タイム vs 現在 PB
-    pb_min  = _CURRENT_PB_SEC // 60
-    g1_min  = _GOAL_1_SEC // 60
-    gut_min = _GOAL_ULT_SEC // 60
-
-    # 進捗バー（VDOT 52→59→63 でレンジ設定）
-    vdot_range = 63 - vdot_pb  # 11 points
-    pos_current = 0
-    pos_g1      = round((59 - vdot_pb) / vdot_range * 100)
-    pos_ult     = 100
-
-    # Sub-3 必要 VDOT ≈ 63（VDOT 58 から+5）
-    vdot_to_sub3 = 63 - vdot_vo2   # 5 ポイント
-
-    # 月数の目安（1 ブロック=12週で VDOT +1.5 程度）
-    months_lo = round(vdot_to_sub3 / 1.5 * 3)  # ≈ 10 ヶ月
-    months_hi = round(vdot_to_sub3 / 1.0 * 3)  # ≈ 15 ヶ月
-
-    # Sub-3:10 へは VDOT 59 → あと 1 ポイント → 3〜4 ヶ月
-    months_g1_lo, months_g1_hi = 2, 4
-
-    # VDOT 58 ダニエルズ基準ペース（表示用文字列）
-    paces_current = [
-        ("E イージー",     "4:53〜5:15/km", "#22c55e",  "有酸素基礎・回復"),
-        ("M マラソン",     "4:26/km",       "#3b82f6",  "レースペース目標"),
-        ("T テンポ",       "4:07〜4:14/km", "#f59e0b",  "乳酸閾値向上"),
-        ("I インターバル", "3:43/km",       "#ef4444",  "VO₂max 向上"),
-        ("R レペティション","3:29/km",      "#8b5cf6",  "スピード・走力"),
-    ]
-    # Sub-3 目標 VDOT 63 ペース
-    paces_sub3 = [
-        ("E", "4:38〜5:00/km", "#22c55e"),
-        ("M", "4:16/km",       "#3b82f6"),
-        ("T", "3:51〜3:59/km", "#f59e0b"),
-        ("I", "3:29/km",       "#ef4444"),
-        ("R", "3:16/km",       "#8b5cf6"),
-    ]
-
-    pace_rows = "".join(
-        f"""<tr>
-          <td><span style="background:{col};color:#fff;padding:2px 7px;border-radius:10px;
-              font-size:11px;font-weight:700">{name}</span></td>
-          <td style="font-weight:700;font-size:14px">{pace}</td>
-          <td style="font-size:12px;color:#718096">{desc}</td>
-        </tr>"""
-        for name, pace, col, desc in paces_current
-    )
-    sub3_pace_cols = "".join(
-        f'<td style="text-align:center"><div style="font-size:11px;color:{col};font-weight:700">'
-        f'{name}</div><div style="font-size:12px">{pace}</div></td>'
-        for name, pace, col in paces_sub3
-    )
+    vdot_pb  = 52   # PB 3:21 ≈ VDOT 52
+    vdot_vo2 = _VO2MAX
+    vdot_gap = vdot_vo2 - vdot_pb
 
     return f"""
     <div class="perf-section">
 
-      <!-- ヘッダー：VO2Max & VDOT -->
+      <!-- VO2Max スライダー＋潜在走力 -->
       <div class="perf-grid">
-
         <div class="perf-box">
           <div class="plan-label">🧬 VO₂Max & 潜在走力</div>
-          <div style="display:flex;align-items:flex-end;gap:20px;margin-top:8px;flex-wrap:wrap">
-            <div style="text-align:center">
-              <div style="font-size:11px;color:#a0aec0;margin-bottom:4px">Garmin VO₂Max</div>
-              <div style="font-size:46px;font-weight:900;color:#3b82f6;line-height:1">{vdot_vo2}</div>
+          <div style="display:flex;align-items:center;gap:16px;margin-top:10px;flex-wrap:wrap">
+            <!-- 数値表示 -->
+            <div style="text-align:center;min-width:80px">
+              <div style="font-size:11px;color:#a0aec0;margin-bottom:2px">Garmin VO₂Max</div>
+              <div id="vo2-display" style="font-size:48px;font-weight:900;color:#3b82f6;line-height:1">{vdot_vo2}</div>
               <div style="font-size:11px;color:#a0aec0">ml/kg/min</div>
             </div>
-            <div style="flex:1;min-width:160px">
-              <div style="font-size:12px;color:#4a5568;line-height:1.8">
-                VO₂Max 58 は<strong>サブ3:07</strong>に相当する生理的能力です。<br>
-                現在 PB との差 <strong style="color:#f59e0b">{vdot_gap} VDOT</strong> は
-                まだ引き出せていない潜在力。<br>
-                正しいトレーニングで確実に縮まります。
+            <!-- スライダー -->
+            <div style="flex:1;min-width:180px">
+              <input type="range" id="vo2-slider" min="45" max="75" value="{vdot_vo2}"
+                oninput="updateVdot(this.value)"
+                style="width:100%;accent-color:#3b82f6;cursor:pointer;margin-bottom:6px">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:#cbd5e0">
+                <span>45</span><span>55</span><span>65</span><span>75</span>
               </div>
+              <div id="vo2-desc" style="font-size:12px;color:#4a5568;line-height:1.7;margin-top:6px"></div>
             </div>
           </div>
         </div>
@@ -179,80 +127,178 @@ def build_performance_profile():
           <div class="plan-label">🎯 目標タイム</div>
           <div style="margin-top:8px">
             <div style="font-size:11px;color:#a0aec0">NEXT</div>
-            <div style="font-size:28px;font-weight:800;color:#f59e0b">Sub 3:10</div>
-            <div style="font-size:11px;color:#a0aec0;margin-bottom:10px">目安 {months_g1_lo}〜{months_g1_hi} ヶ月</div>
+            <div style="font-size:26px;font-weight:800;color:#f59e0b">Sub 3:10</div>
+            <div id="g1-months" style="font-size:11px;color:#a0aec0;margin-bottom:10px"></div>
             <div style="font-size:11px;color:#a0aec0">ULTIMATE</div>
-            <div style="font-size:28px;font-weight:800;color:#ef4444">Sub 3:00</div>
-            <div style="font-size:11px;color:#a0aec0">目安 {months_lo}〜{months_hi} ヶ月</div>
+            <div style="font-size:26px;font-weight:800;color:#ef4444">Sub 3:00</div>
+            <div id="ult-months" style="font-size:11px;color:#a0aec0"></div>
           </div>
         </div>
       </div>
 
-      <!-- VDOT 進捗バー -->
+      <!-- VDOT 進捗バー (JS 制御) -->
       <div class="perf-box" style="margin-top:0">
-        <div class="plan-label">📊 VDOT 進捗（自己ベスト基準 → Sub-3 まで）</div>
-        <div style="position:relative;height:28px;background:#e2e8f0;border-radius:14px;margin:14px 0 8px">
-          <!-- PB 位置（VDOT 52）= 0% -->
-          <div style="position:absolute;left:0;top:0;height:28px;width:100%;border-radius:14px;
-                      background:linear-gradient(90deg,#94a3b8 0%,#3b82f6 {pos_g1}%,#f59e0b {pos_g1}%,
-                      #ef4444 {pos_ult}%)"></div>
-          <!-- 現在位置マーカー（VDOT 58） -->
-          <div style="position:absolute;left:{round((vdot_vo2-vdot_pb)/vdot_range*100)}%;top:-4px;
-                      transform:translateX(-50%);background:#fff;border:3px solid #3b82f6;
-                      border-radius:50%;width:22px;height:22px;z-index:2"></div>
-          <!-- ラベル -->
-          <div style="position:absolute;left:{round((vdot_vo2-vdot_pb)/vdot_range*100)}%;top:30px;
-                      transform:translateX(-50%);font-size:10px;color:#3b82f6;font-weight:700;
-                      white-space:nowrap">VDOT {vdot_vo2}<br>（現在）</div>
-          <div style="position:absolute;left:{pos_g1}%;top:30px;transform:translateX(-50%);
-                      font-size:10px;color:#f59e0b;font-weight:700;white-space:nowrap">
-                      VDOT 59<br>Sub 3:10</div>
-          <div style="position:absolute;left:0;top:30px;font-size:10px;color:#718096">
-                      VDOT {vdot_pb}<br>（PB 3:21）</div>
+        <div class="plan-label">📊 VDOT 進捗（自己ベスト → Sub-3 まで）</div>
+        <div style="position:relative;height:26px;background:#e2e8f0;border-radius:13px;margin:16px 0 8px">
+          <div style="position:absolute;left:0;top:0;height:26px;width:100%;border-radius:13px;
+               background:linear-gradient(90deg,#94a3b8 0%,#3b82f6 64%,#f59e0b 64%,#ef4444 100%)"></div>
+          <div id="vdot-marker" style="position:absolute;top:-5px;transform:translateX(-50%);
+               background:#fff;border:3px solid #3b82f6;border-radius:50%;
+               width:24px;height:24px;z-index:2;transition:left .3s"></div>
+          <div id="vdot-label" style="position:absolute;top:30px;transform:translateX(-50%);
+               font-size:10px;color:#3b82f6;font-weight:700;white-space:nowrap;transition:left .3s"></div>
+          <div style="position:absolute;left:0;top:30px;font-size:10px;color:#718096">VDOT {vdot_pb}<br>（PB 3:21）</div>
+          <div style="position:absolute;left:64%;top:30px;transform:translateX(-50%);
+               font-size:10px;color:#f59e0b;font-weight:700;white-space:nowrap">VDOT 59<br>Sub 3:10</div>
           <div style="position:absolute;right:0;top:30px;text-align:right;
-                      font-size:10px;color:#ef4444;font-weight:700">VDOT 63<br>Sub 3:00</div>
+               font-size:10px;color:#ef4444;font-weight:700">VDOT 63<br>Sub 3:00</div>
         </div>
-        <div style="height:36px"></div>
+        <div style="height:40px"></div>
       </div>
 
-      <!-- 練習ペース表 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0">
-
+      <!-- 練習ペース表（JS 更新） -->
+      <div class="perf-pace-grid">
         <div class="perf-box">
-          <div class="plan-label">🏃 現在の練習ペース（VO₂Max 58 基準）</div>
-          <table style="width:100%;border-collapse:collapse;margin-top:8px">
-            <tbody>{pace_rows}</tbody>
+          <div class="plan-label">🏃 現在の練習ペース（VO₂Max <span id="pace-vo2-label">{vdot_vo2}</span> 基準）</div>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px" id="pace-table">
+            <tbody>
+              <tr><td><span class="pace-badge" style="background:#22c55e">E イージー</span></td>
+                  <td id="p-e" style="font-weight:700;font-size:14px"></td>
+                  <td style="font-size:12px;color:#718096">有酸素基礎・回復</td></tr>
+              <tr><td><span class="pace-badge" style="background:#3b82f6">M マラソン</span></td>
+                  <td id="p-m" style="font-weight:700;font-size:14px"></td>
+                  <td style="font-size:12px;color:#718096">レースペース目標</td></tr>
+              <tr><td><span class="pace-badge" style="background:#f59e0b">T テンポ</span></td>
+                  <td id="p-t" style="font-weight:700;font-size:14px"></td>
+                  <td style="font-size:12px;color:#718096">乳酸閾値向上</td></tr>
+              <tr><td><span class="pace-badge" style="background:#ef4444">I インターバル</span></td>
+                  <td id="p-i" style="font-weight:700;font-size:14px"></td>
+                  <td style="font-size:12px;color:#718096">VO₂max 向上</td></tr>
+              <tr><td><span class="pace-badge" style="background:#8b5cf6">R レペティション</span></td>
+                  <td id="p-r" style="font-weight:700;font-size:14px"></td>
+                  <td style="font-size:12px;color:#718096">スピード・走力</td></tr>
+            </tbody>
           </table>
         </div>
 
         <div class="perf-box">
-          <div class="plan-label">🏆 Sub-3:00 達成後の練習ペース（VDOT 63）</div>
+          <div class="plan-label">🏆 Sub-3:00 目標ペース（VDOT 63）</div>
           <table style="width:100%;border-collapse:collapse;margin-top:8px">
-            <tr style="background:#fff8f0;border-radius:8px">{sub3_pace_cols}</tr>
+            <tr>
+              <td style="text-align:center"><div style="font-size:11px;color:#22c55e;font-weight:700">E</div><div style="font-size:12px">4:41〜5:02</div></td>
+              <td style="text-align:center"><div style="font-size:11px;color:#3b82f6;font-weight:700">M</div><div style="font-size:12px">4:15/km</div></td>
+              <td style="text-align:center"><div style="font-size:11px;color:#f59e0b;font-weight:700">T</div><div style="font-size:12px">3:57/km</div></td>
+              <td style="text-align:center"><div style="font-size:11px;color:#ef4444;font-weight:700">I</div><div style="font-size:12px">3:33/km</div></td>
+              <td style="text-align:center"><div style="font-size:11px;color:#8b5cf6;font-weight:700">R</div><div style="font-size:12px">3:19/km</div></td>
+            </tr>
           </table>
-          <div style="margin-top:16px">
-            <div style="font-size:12px;color:#4a5568;font-weight:700;margin-bottom:8px">
-              Sub-3:00 への 3 つの柱
-            </div>
-            <div style="font-size:12px;color:#718096;line-height:1.9">
-              <span style="color:#ef4444;font-weight:700">①</span>
-              週間走行量 <strong>70〜80km</strong>（現在 ~50km）<br>
-              <span style="color:#f59e0b;font-weight:700">②</span>
-              月2回以上の <strong>30km ロング走</strong><br>
-              <span style="color:#22c55e;font-weight:700">③</span>
-              週1回の <strong>テンポ走</strong> or <strong>インターバル</strong>
-            </div>
+          <div style="margin-top:14px;font-size:12px;color:#4a5568;font-weight:700;margin-bottom:6px">Sub-3:00 への 3 つの柱</div>
+          <div style="font-size:12px;color:#718096;line-height:1.9">
+            <span style="color:#ef4444;font-weight:700">①</span> 週間走行量 <strong>70〜80km</strong>（現在 ~50km）<br>
+            <span style="color:#f59e0b;font-weight:700">②</span> 月2回以上の <strong>30km ロング走</strong><br>
+            <span style="color:#22c55e;font-weight:700">③</span> 週1回の <strong>テンポ走</strong> or <strong>インターバル</strong>
           </div>
-          <div style="margin-top:12px;padding:10px;background:#fef3c7;border-radius:8px;
-                      font-size:11px;color:#92400e;line-height:1.7">
-            💡 <strong>Pfitzinger（Advanced Marathoning）</strong> では
-            週 80〜90km・ミディアムロング走（週2回）を推奨。<br>
-            <strong>Hansons</strong> 式では累積疲労を活用し
-            ロングは 26km 以内に抑えて頻度を上げる手法も有効。
+          <div style="margin-top:10px;padding:10px;background:#fef3c7;border-radius:8px;font-size:11px;color:#92400e;line-height:1.7">
+            💡 <strong>Pfitzinger</strong>: 週80〜90km・ミディアムロング走週2回<br>
+            <strong>Hansons</strong>: 累積疲労活用・ロング上限26km
           </div>
         </div>
-
       </div>
+
+      <!-- VO2Max JS ロジック -->
+      <script>
+      (function(){{
+        // VDOT → [eLo, eHi, marathon, tempo, interval, rep] (秒/km)
+        const T = {{
+          45:[349,374,310,300,269,254], 47:[339,363,301,290,261,246],
+          49:[329,353,293,282,253,238], 50:[324,347,289,278,249,234],
+          51:[319,342,286,274,246,231], 52:[314,337,282,269,242,228],
+          53:[309,332,278,265,238,224], 54:[304,326,274,261,234,220],
+          55:[300,322,271,257,231,217], 56:[296,317,267,254,227,213],
+          57:[293,314,264,250,224,210], 58:[290,311,261,247,222,208],
+          59:[287,308,258,244,219,205], 60:[284,305,255,241,216,202],
+          61:[281,302,252,238,213,199], 62:[278,299,249,235,210,197],
+          63:[275,296,246,232,208,194], 64:[272,293,243,230,205,192],
+          65:[270,290,241,227,203,189], 67:[264,284,236,222,198,185],
+          70:[257,276,229,216,192,179],
+        }};
+
+        function interp(v) {{
+          const keys = Object.keys(T).map(Number).sort((a,b)=>a-b);
+          for (let i=0; i<keys.length-1; i++) {{
+            const k1=keys[i], k2=keys[i+1];
+            if (v>=k1 && v<=k2) {{
+              const r=(v-k1)/(k2-k1);
+              return T[k1].map((a,j)=>Math.round(a+(T[k2][j]-a)*r));
+            }}
+          }}
+          return v<=keys[0]?T[keys[0]]:T[keys[keys.length-1]];
+        }}
+
+        function sec2pace(s) {{
+          return Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60;
+        }}
+
+        function vdotToMarathon(v) {{
+          // s = linear fit between anchors
+          const anchors = [[45,13500],[50,12480],[52,12060],[55,11580],[58,11280],
+                           [59,11160],[60,11040],[63,10740],[65,10500],[70,9960]];
+          for (let i=0;i<anchors.length-1;i++) {{
+            const [v1,s1]=anchors[i],[v2,s2]=anchors[i+1];
+            if (v>=v1&&v<=v2) {{ return Math.round(s1+(s2-s1)*(v-v1)/(v2-v1)); }}
+          }}
+          return v<anchors[0][0]?anchors[0][1]:anchors[anchors.length-1][1];
+        }}
+
+        function fmtTime(s) {{
+          const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);
+          return h+':'+(m<10?'0':'')+m;
+        }}
+
+        window.updateVdot = function(v) {{
+          v = parseInt(v);
+          const p = interp(v);
+          const VDOT_PB=52, VDOT_G1=59, VDOT_ULT=63;
+
+          // 表示更新
+          document.getElementById('vo2-display').textContent = v;
+          document.getElementById('pace-vo2-label').textContent = v;
+          document.getElementById('vo2-slider').value = v;
+
+          // ペース表
+          document.getElementById('p-e').textContent = sec2pace(p[0])+'〜'+sec2pace(p[1])+'/km';
+          document.getElementById('p-m').textContent = sec2pace(p[2])+'/km';
+          document.getElementById('p-t').textContent = sec2pace(p[3])+'〜'+sec2pace(p[3]+6)+'/km';
+          document.getElementById('p-i').textContent = sec2pace(p[4])+'/km';
+          document.getElementById('p-r').textContent = sec2pace(p[5])+'/km';
+
+          // 説明文
+          const mSec = vdotToMarathon(v);
+          const gap = v - VDOT_PB;
+          document.getElementById('vo2-desc').innerHTML =
+            'VO₂Max '+v+' は <strong>'+fmtTime(mSec)+'相当</strong>の生理的能力。<br>'+
+            'PB との差 <strong style="color:#f59e0b">'+gap+' VDOT</strong> が潜在力です。';
+
+          // 目標月数
+          const toG1 = Math.max(0, VDOT_G1-v);
+          const toUlt = Math.max(0, VDOT_ULT-v);
+          document.getElementById('g1-months').textContent =
+            toG1<=0 ? '✅ 到達済み' : '目安 '+(Math.round(toG1/1.5*3))+'〜'+(Math.round(toG1/1.0*3))+' ヶ月';
+          document.getElementById('ult-months').textContent =
+            toUlt<=0 ? '✅ 到達済み' : '目安 '+(Math.round(toUlt/1.5*3))+'〜'+(Math.round(toUlt/1.0*3))+' ヶ月';
+
+          // VDOT バー（PB=0%, ULT=100%, range=63-52=11）
+          const range = VDOT_ULT - VDOT_PB;
+          const pct = Math.min(100, Math.max(0, (v-VDOT_PB)/range*100));
+          document.getElementById('vdot-marker').style.left = pct+'%';
+          document.getElementById('vdot-label').style.left  = pct+'%';
+          document.getElementById('vdot-label').innerHTML = 'VDOT '+v+'<br>（現在）';
+        }};
+
+        // 初期描画
+        updateVdot({vdot_vo2});
+      }})();
+      </script>
 
     </div>"""
 
@@ -315,9 +361,9 @@ def build_top_plan(runs):
     for day_str, label, menu, is_race in race_week_plan:
         bg = "background:#fff5f5;font-weight:600" if is_race else ""
         plan_rows += f"""<tr style="{bg}">
-          <td style="white-space:nowrap;color:#718096;font-size:12px">{day_str}</td>
-          <td style="font-size:11px;color:#a0aec0;white-space:nowrap">{label}</td>
-          <td style="font-size:13px">{menu}</td>
+          <td class="rw-col-date" style="white-space:nowrap;color:#718096;font-size:12px">{day_str}</td>
+          <td class="rw-col-label" style="font-size:11px;color:#a0aec0;white-space:nowrap">{label}</td>
+          <td class="rw-col-menu" style="font-size:13px">{menu}</td>
         </tr>"""
 
     return f"""
@@ -922,7 +968,7 @@ def activity_rows():
           <td style="text-align:right">{r.get('moving_time','-')}</td>
           <td style="text-align:right">{pace} /km</td>
           <td style="text-align:right">{hr}</td>
-          <td style="text-align:right">{elev}</td>
+          <td class="act-col-elev" style="text-align:right">{elev}</td>
           <td>{badge}</td>
         </tr>""")
     return "\n".join(rows)
@@ -1045,15 +1091,49 @@ html = f"""<!DOCTYPE html>
   /* パフォーマンスプロフィール */
   .perf-section {{ margin-bottom:24px;display:flex;flex-direction:column;gap:16px }}
   .perf-grid {{ display:grid;grid-template-columns:1fr 220px;gap:16px }}
+  .perf-pace-grid {{ display:grid;grid-template-columns:1fr 1fr;gap:16px }}
   .perf-box {{ background:#fff;border-radius:12px;padding:18px 20px;
                box-shadow:0 1px 4px rgba(0,0,0,.08) }}
   .perf-box table td {{ padding:7px 10px;border-bottom:1px solid #f0f4f8;font-size:13px }}
   .perf-box table tr:last-child td {{ border-bottom:none }}
-  @media(max-width:700px){{ .top-plan-grid,.perf-grid {{ grid-template-columns:1fr }} }}
+  .pace-badge {{ color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap }}
+  /* テーブルスクロール */
+  .table-scroll {{ overflow-x:auto;-webkit-overflow-scrolling:touch }}
+  /* ── モバイル対応（iPhone 縦型 ≈ 390px） ── */
+  @media(max-width:700px){{
+    .top-plan-grid,.perf-grid,.perf-pace-grid {{ grid-template-columns:1fr }}
+    .container {{ padding:16px 12px }}
+    .header {{ padding:20px 16px }}
+    .header h1 {{ font-size:20px }}
+    .cards {{ grid-template-columns:repeat(2,1fr);gap:10px }}
+    .card {{ padding:14px 16px }}
+    .card .value {{ font-size:22px }}
+  }}
   @media (max-width: 800px) {{
     .charts {{ grid-template-columns: 1fr }}
     .coach-layout {{ grid-template-columns: 1fr }}
     .run-map {{ border-left:none;border-top:1px solid #e2e8f0 }}
+  }}
+  @media(max-width:480px){{
+    /* アクティビティ表：標高列を非表示 */
+    .act-col-elev {{ display:none }}
+    /* レース週テーブル：日付列を縮小、ラベル列を非表示 */
+    .rw-col-label {{ display:none }}
+    .rw-col-date {{ font-size:11px;white-space:normal!important }}
+    .rw-col-menu {{ font-size:12px }}
+    /* スコア内訳 */
+    .score-breakdown {{ font-size:11px;gap:8px }}
+    .score-bar-bg {{ display:none }}
+    .score-num {{ font-size:18px }}
+    /* ラップ表 */
+    .lap-table th,.lap-table td {{ padding:5px 8px;font-size:11px }}
+    /* コーチヘッダー */
+    .coach-header {{ flex-direction:column;align-items:flex-start }}
+    .coach-date small {{ display:inline;margin-left:6px }}
+    /* section padding 縮小 */
+    .section {{ padding:16px 12px }}
+    .plan-box {{ padding:14px 14px }}
+    .perf-box {{ padding:14px 14px }}
   }}
 </style>
 </head>
@@ -1119,17 +1199,19 @@ html = f"""<!DOCTYPE html>
   <!-- アクティビティ一覧 -->
   <div class="section">
     <h2>アクティビティ一覧</h2>
+    <div class="table-scroll">
     <table>
       <thead>
         <tr>
           <th>日付</th><th>名前</th><th>距離</th><th>タイム</th>
-          <th>ペース</th><th>HR</th><th>標高</th><th>種別</th>
+          <th>ペース</th><th>HR</th><th class="act-col-elev">標高</th><th>種別</th>
         </tr>
       </thead>
       <tbody>
         {activity_rows()}
       </tbody>
     </table>
+    </div>
   </div>
 
   <!-- コーチングレビュー -->

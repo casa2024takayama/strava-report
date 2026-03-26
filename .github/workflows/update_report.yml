@@ -1,0 +1,89 @@
+name: 🏃 Update Strava Report
+
+on:
+  workflow_dispatch:   # GitHubアプリから手動実行
+  schedule:
+    - cron: '0 14 * * *'   # 毎日 UTC 14:00 = JST 23:00 に自動実行
+
+permissions:
+  contents: write
+  secrets: write   # リフレッシュトークン更新用
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Setup Strava tokens
+        env:
+          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, requests
+
+          client_id     = os.environ["STRAVA_CLIENT_ID"]
+          client_secret = os.environ["STRAVA_CLIENT_SECRET"]
+          refresh_token = os.environ["STRAVA_REFRESH_TOKEN"]
+
+          # アクセストークンを更新
+          resp = requests.post("https://www.strava.com/oauth/token", data={
+              "client_id":     client_id,
+              "client_secret": client_secret,
+              "refresh_token": refresh_token,
+              "grant_type":    "refresh_token",
+          })
+          resp.raise_for_status()
+          tokens = resp.json()
+
+          # strava_tokens.json に書き込む
+          with open("strava_tokens.json", "w") as f:
+              json.dump(tokens, f, indent=2)
+
+          # .env ファイルを作成
+          with open(".env", "w") as f:
+              f.write(f"STRAVA_CLIENT_ID={client_id}\n")
+              f.write(f"STRAVA_CLIENT_SECRET={client_secret}\n")
+
+          # 新しいリフレッシュトークンを出力（次ステップで更新）
+          with open("/tmp/new_refresh_token.txt", "w") as f:
+              f.write(tokens["refresh_token"])
+
+          print(f"✓ Token refreshed (expires: {tokens.get('expires_at')})")
+          EOF
+
+      - name: Update STRAVA_REFRESH_TOKEN secret
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          NEW_TOKEN=$(cat /tmp/new_refresh_token.txt)
+          gh secret set STRAVA_REFRESH_TOKEN -b "$NEW_TOKEN" -R ${{ github.repository }}
+          echo "✓ Refresh token updated"
+
+      - name: Fetch Strava data
+        run: python3 strava_fetch.py
+
+      - name: Generate HTML report
+        run: python3 report_html.py
+
+      - name: Deploy to GitHub Pages
+        run: |
+          cp report_march2026.html index.html
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Update report $(date '+%Y-%m-%d %H:%M') JST"
+          git push
+          echo "🌐 Deployed → https://casa2024takayama.github.io/strava-report/"
