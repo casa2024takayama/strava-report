@@ -81,7 +81,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html
+          # index.html と pbs.json のみコミット（CSV・GPSは含めない）
+          git add index.html pbs.json 2>/dev/null || git add index.html
           git diff --staged --quiet || git commit -m "Update report $(date '+%Y-%m-%d %H:%M') JST"
           git pull --rebase origin main
           git push

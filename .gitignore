@@ -7,6 +7,12 @@ strava_tokens.json
 __pycache__/
 *.pyc
 
+# 生成データ（プライバシー保護・index.htmlに埋め込み済みのため不要）
+*.csv
+gps_streams*.csv
+report_*.html
+report_*.md
+
 # ログ
 *.log
 
