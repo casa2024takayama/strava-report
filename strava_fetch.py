@@ -4,7 +4,7 @@ Strava ランニングデータ取得（現在月を自動検出）
 - レート制限をヘッダーで先読みし、上限手前で自動待機
 - 取得済みアクティビティはキャッシュから読み込み（2回目以降は API 不使用）
 - ランニング種目のみ対象
-- 出力: runs_YYYYMM.csv / runs_YYYYMM_laps.csv / gps_streams.csv
+- 出力: runs_YYYYMM.csv / runs_YYYYMM_laps.csv / gps_streams_YYYYMM.csv
 環境変数 TARGET_YEAR_MONTH=YYYY-MM で月を指定可能（省略時は当月）
 """
 
@@ -57,7 +57,7 @@ MONTH_LABEL  = f"{TARGET_YEAR}年{TARGET_MONTH}月"
 
 RUNS_CSV    = f"runs_{YYYYMM}.csv"
 LAPS_CSV    = f"runs_{YYYYMM}_laps.csv"
-STREAMS_CSV = "gps_streams.csv"
+STREAMS_CSV = f"gps_streams_{YYYYMM}.csv"
 
 # ── レート制限状態 ─────────────────────────────────────────────────────────
 # 読み取り専用エンドポイントの制限: 100 req/15min, 1000 req/day
@@ -460,12 +460,12 @@ def main():
     print("\n[5/5] CSV 出力...")
     export_runs_csv(details)
     export_laps_csv(details)
-    export_streams_csv(details, streams_map)
+    export_streams_csv(details, streams_map, STREAMS_CSV)
 
     print("\n=== 完了 ===")
     print(f"  {RUNS_CSV}  - アクティビティ一覧")
     print(f"  {LAPS_CSV}  - ラップ詳細")
-    print("  gps_streams.csv          - GPS ストリーム（3km 以上）")
+    print(f"  gps_streams_{YYYYMM}.csv  - GPS ストリーム（3km 以上）")
     print("\n次のステップ:")
     print("  python3 report_html.py  # HTML レポート生成")
 

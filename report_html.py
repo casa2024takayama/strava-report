@@ -27,7 +27,7 @@ MONTH_END    = date(TARGET_YEAR, TARGET_MONTH,
 
 RUNS_CSV      = f"runs_{YYYYMM}.csv"
 LAPS_CSV      = f"runs_{YYYYMM}_laps.csv"
-STREAMS_CSV   = "gps_streams.csv"
+STREAMS_CSV   = f"gps_streams_{YYYYMM}.csv"
 ARCHIVE_FILE  = f"{YYYYMM}.html"   # 月別アーカイブ（永続）
 OUTPUT        = "index.html"        # 常に当月を index.html にも書く
 
