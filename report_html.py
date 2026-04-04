@@ -46,20 +46,49 @@ def _available_months():
 
 def build_month_nav():
     months = _available_months()
-    # 現在生成中の月が未ファイルでも必ずタブに含める
     current = (TARGET_YEAR, TARGET_MONTH, ARCHIVE_FILE)
     if current not in months:
         months.append(current)
-        months.sort(reverse=True)
-    if len(months) <= 1:
+
+    months_asc = sorted(months)   # 古い順
+    if len(months_asc) <= 1:
         return ""
-    tabs = ""
-    for y, mo, fname in months:
-        is_cur = (y == TARGET_YEAR and mo == TARGET_MONTH)
-        label  = f"{y}年{mo}月{'（当月）' if is_cur else ''}"
-        style  = "month-tab-active" if is_cur else "month-tab"
-        tabs  += f'<a href="{fname}" class="{style}">{label}</a>'
-    return f'<nav class="month-nav">{tabs}</nav>'
+
+    try:
+        idx = next(i for i, (y, mo, _) in enumerate(months_asc)
+                   if y == TARGET_YEAR and mo == TARGET_MONTH)
+    except StopIteration:
+        return ""
+
+    is_latest = (idx == len(months_asc) - 1)
+
+    # ← 前（古い）月
+    if idx > 0:
+        py, pm, pf = months_asc[idx - 1]
+        prev_html = f'<a href="{pf}" class="mnav-arrow">← {pm}月</a>'
+    else:
+        prev_html = '<span class="mnav-arrow mnav-disabled">←</span>'
+
+    # → 次（新しい）月
+    if not is_latest:
+        ny, nm, nf = months_asc[idx + 1]
+        next_label = "最新 →" if (idx + 1 == len(months_asc) - 1) else f"{nm}月 →"
+        next_html  = f'<a href="{nf}" class="mnav-arrow">{next_label}</a>'
+    else:
+        next_html = '<span class="mnav-arrow mnav-disabled">→</span>'
+
+    cur_label = f"{TARGET_YEAR}年{TARGET_MONTH}月{'　✦ 最新' if is_latest else ''}"
+
+    # アーカイブ閲覧中のみ「最新へ」固定ボタン
+    back_btn = ('' if is_latest else
+                '<a href="index.html" class="back-latest">↑ 最新データへ</a>')
+
+    return f"""<nav class="month-nav">
+  {prev_html}
+  <span class="mnav-label">{cur_label}</span>
+  {next_html}
+</nav>
+{back_btn}"""
 
 # ── アスリートプロフィール（表示には使用しない） ───────────────────────────
 _WEIGHT_KG    = 65
@@ -1543,16 +1572,22 @@ html = f"""<!DOCTYPE html>
     .run-map {{ border-left:none;border-top:1px solid #e2e8f0 }}
   }}
   /* 月別ナビゲーション */
-  .month-nav {{ background:#1a202c;padding:0 20px;display:flex;gap:4px;overflow-x:auto;
-               -webkit-overflow-scrolling:touch }}
-  .month-tab,.month-tab-active {{ display:inline-block;padding:10px 16px;font-size:13px;
-    font-weight:600;text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent }}
-  .month-tab {{ color:#a0aec0 }}
-  .month-tab:hover {{ color:#fff }}
-  .month-tab-active {{ color:#fc4c02;border-bottom-color:#fc4c02 }}
-  @media(max-width:480px){{
-    .month-tab,.month-tab-active {{ padding:8px 12px;font-size:12px }}
-  }}
+  .month-nav {{ background:#1a202c;display:flex;align-items:center;
+               justify-content:space-between;padding:0 8px }}
+  .mnav-arrow {{ color:#a0aec0;text-decoration:none;font-size:14px;font-weight:700;
+                padding:12px 16px;display:inline-block;white-space:nowrap }}
+  .mnav-arrow:hover {{ color:#fff }}
+  .mnav-disabled {{ color:#3a4556;cursor:default }}
+  .mnav-label {{ font-size:14px;font-weight:700;color:#fff;text-align:center;flex:1 }}
+  /* 最新へ戻るフローティングボタン */
+  .back-latest {{ position:fixed;bottom:24px;right:20px;background:#fc4c02;color:#fff;
+                 padding:12px 20px;border-radius:24px;font-size:13px;font-weight:700;
+                 text-decoration:none;box-shadow:0 4px 16px rgba(252,76,2,.45);
+                 z-index:999;transition:transform .15s }}
+  .back-latest:hover {{ transform:translateY(-2px) }}
+  /* ヘッダータイトルリンク */
+  .header-link {{ color:inherit;text-decoration:none }}
+  .header-link:hover {{ opacity:.85 }}
   @media(max-width:480px){{
     /* アクティビティ表：標高列を非表示 */
     .act-col-elev {{ display:none }}
@@ -1581,8 +1616,10 @@ html = f"""<!DOCTYPE html>
 {build_month_nav()}
 
 <div class="header">
-  <h1>🏃 {MONTH_LABEL} ランニングレポート</h1>
-  <p>Strava データより生成 — {date.today()}</p>
+  <a href="index.html" class="header-link">
+    <h1>🏃 ランニングレポート</h1>
+  </a>
+  <p>{MONTH_LABEL} — Strava データより生成 {date.today()}</p>
 </div>
 
 <div class="container">

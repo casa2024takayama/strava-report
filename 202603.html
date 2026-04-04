@@ -122,16 +122,22 @@
     .run-map { border-left:none;border-top:1px solid #e2e8f0 }
   }
   /* 月別ナビゲーション */
-  .month-nav { background:#1a202c;padding:0 20px;display:flex;gap:4px;overflow-x:auto;
-               -webkit-overflow-scrolling:touch }
-  .month-tab,.month-tab-active { display:inline-block;padding:10px 16px;font-size:13px;
-    font-weight:600;text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent }
-  .month-tab { color:#a0aec0 }
-  .month-tab:hover { color:#fff }
-  .month-tab-active { color:#fc4c02;border-bottom-color:#fc4c02 }
-  @media(max-width:480px){
-    .month-tab,.month-tab-active { padding:8px 12px;font-size:12px }
-  }
+  .month-nav { background:#1a202c;display:flex;align-items:center;
+               justify-content:space-between;padding:0 8px }
+  .mnav-arrow { color:#a0aec0;text-decoration:none;font-size:14px;font-weight:700;
+                padding:12px 16px;display:inline-block;white-space:nowrap }
+  .mnav-arrow:hover { color:#fff }
+  .mnav-disabled { color:#3a4556;cursor:default }
+  .mnav-label { font-size:14px;font-weight:700;color:#fff;text-align:center;flex:1 }
+  /* 最新へ戻るフローティングボタン */
+  .back-latest { position:fixed;bottom:24px;right:20px;background:#fc4c02;color:#fff;
+                 padding:12px 20px;border-radius:24px;font-size:13px;font-weight:700;
+                 text-decoration:none;box-shadow:0 4px 16px rgba(252,76,2,.45);
+                 z-index:999;transition:transform .15s }
+  .back-latest:hover { transform:translateY(-2px) }
+  /* ヘッダータイトルリンク */
+  .header-link { color:inherit;text-decoration:none }
+  .header-link:hover { opacity:.85 }
   @media(max-width:480px){
     /* アクティビティ表：標高列を非表示 */
     .act-col-elev { display:none }
@@ -157,11 +163,18 @@
 </head>
 <body>
 
-<nav class="month-nav"><a href="202604.html" class="month-tab">2026年4月</a><a href="202603.html" class="month-tab-active">2026年3月（当月）</a></nav>
+<nav class="month-nav">
+  <span class="mnav-arrow mnav-disabled">←</span>
+  <span class="mnav-label">2026年3月</span>
+  <a href="202604.html" class="mnav-arrow">最新 →</a>
+</nav>
+<a href="index.html" class="back-latest">↑ 最新データへ</a>
 
 <div class="header">
-  <h1>🏃 2026年3月 ランニングレポート</h1>
-  <p>Strava データより生成 — 2026-04-04</p>
+  <a href="index.html" class="header-link">
+    <h1>🏃 ランニングレポート</h1>
+  </a>
+  <p>2026年3月 — Strava データより生成 2026-04-04</p>
 </div>
 
 <div class="container">
