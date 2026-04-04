@@ -1,24 +1,52 @@
 #!/usr/bin/env python3
 """
-Strava 2026年3月 HTML レポート生成
-runs_march2026.csv / runs_march2026_laps.csv → report_march2026.html
+Strava HTML レポート生成（現在月を自動検出）
+環境変数 TARGET_YEAR_MONTH=YYYY-MM で月を指定可能（省略時は当月）
 """
 
 import csv, json, os
 from collections import defaultdict
 from datetime import date, timedelta
+import calendar as _cal_mod
 
-RUNS_CSV    = "runs_march2026.csv"
-LAPS_CSV    = "runs_march2026_laps.csv"
+# ── 対象月の決定 ────────────────────────────────────────────────────────────
+_ym_env = os.environ.get("TARGET_YEAR_MONTH", "")
+if _ym_env:
+    TARGET_YEAR  = int(_ym_env.split("-")[0])
+    TARGET_MONTH = int(_ym_env.split("-")[1])
+else:
+    _today = date.today()
+    TARGET_YEAR  = _today.year
+    TARGET_MONTH = _today.month
+
+YYYYMM       = f"{TARGET_YEAR}{TARGET_MONTH:02d}"
+MONTH_LABEL  = f"{TARGET_YEAR}年{TARGET_MONTH}月"
+MONTH_START  = date(TARGET_YEAR, TARGET_MONTH, 1)
+MONTH_END    = date(TARGET_YEAR, TARGET_MONTH,
+                    _cal_mod.monthrange(TARGET_YEAR, TARGET_MONTH)[1])
+
+RUNS_CSV    = f"runs_{YYYYMM}.csv"
+LAPS_CSV    = f"runs_{YYYYMM}_laps.csv"
 STREAMS_CSV = "gps_streams.csv"
-OUTPUT      = "report_march2026.html"
+OUTPUT      = "index.html"
 
 # ── アスリートプロフィール（表示には使用しない） ───────────────────────────
 _WEIGHT_KG    = 65
 _HEIGHT_CM    = 174
-_NEXT_RACE    = date(2026, 3, 28)
-_RACE_NAME    = "ふくい桜マラソン"
 _MONTH_GOAL   = 200   # km/月
+
+# ── レーススケジュール（過去も含めて列挙、自動で次のレースを選択） ─────────
+_RACES = [
+    (date(2026, 3,  1),  "東京マラソン2026",    42.195),
+    (date(2026, 3, 28),  "ふくい桜マラソン",    42.195),
+    # ↓ 次のレースをここに追加
+    # (date(2026, 10, 18), "大阪マラソン",       42.195),
+]
+_today_ref = date.today()
+_next_races  = [(d, n, dist) for d, n, dist in _RACES if d >= _today_ref]
+_NEXT_RACE   = _next_races[0][0]   if _next_races else None
+_RACE_NAME   = _next_races[0][1]   if _next_races else None
+_RACE_DIST   = _next_races[0][2]   if _next_races else 42.195
 _VO2MAX       = 59    # Garmin 計測 VO2Max（HTML上でスライダー変更可能）
 _CURRENT_PB   = "3:21:00"   # フルマラソン自己ベスト（非表示）
 _CURRENT_PB_SEC = 3*3600 + 21*60  # 12060 sec
@@ -51,10 +79,10 @@ def pace_to_sec(p):
 def week_label(date_str):
     try:
         d = date.fromisoformat(date_str)
-        w = (d - date(2026, 3, 1)).days // 7 + 1
-        mon = date(2026, 3, 1) + timedelta(weeks=w-1)
+        w = (d - MONTH_START).days // 7 + 1
+        mon = MONTH_START + timedelta(weeks=w-1)
         sun = mon + timedelta(days=6)
-        return f"第{w}週 ({mon.strftime('%-m/%-d')}〜{min(sun, date(2026,3,31)).strftime('%-m/%-d')})"
+        return f"第{w}週 ({mon.strftime('%-m/%-d')}〜{min(sun, MONTH_END).strftime('%-m/%-d')})"
     except: return "?"
 
 def training_type(run):
@@ -306,9 +334,7 @@ def build_performance_profile():
 # ── トップサマリー：レース準備＋練習メニュー ──────────────────────────────
 def build_top_plan(runs):
     today       = date.today()
-    days_to_race = (_NEXT_RACE - today).days
     current_km  = sum(float(r["distance_km"] or 0) for r in runs)
-    # projected / remaining は JS 側で動的計算するので Python では使わない
     remaining   = max(0, _MONTH_GOAL - current_km)
 
     # 週別距離（傾向分析用）
@@ -316,18 +342,18 @@ def build_top_plan(runs):
     for r in runs:
         try:
             d = date.fromisoformat(r["date"])
-            w = (d - date(2026, 3, 1)).days // 7 + 1
+            w = (d - MONTH_START).days // 7 + 1
             by_week[w] += float(r["distance_km"] or 0)
         except: pass
     week_vols = [by_week.get(w, 0) for w in sorted(by_week)]
 
     # 傾向コメント
     if len(week_vols) >= 3:
-        trend_val = week_vols[-1] - week_vols[1]  # 最終週 vs 第2週
+        trend_val = week_vols[-1] - week_vols[1]
         if trend_val > 10:
             trend_txt = "距離・負荷が順調に増加しており、<strong>フィットネスが回復・向上中</strong>です。"
         elif trend_val > 0:
-            trend_txt = "東京マラソン後の回復から着実に走行量を積み上げています。"
+            trend_txt = f"{MONTH_LABEL}の練習から着実に走行量を積み上げています。"
         else:
             trend_txt = "テーパー週に入っており、走行量を適切に落とせています。"
     else:
@@ -336,25 +362,27 @@ def build_top_plan(runs):
     # 月間200km進捗バー（実績のみ Python 計算、見込みは JS）
     pct = min(100, round(current_km / _MONTH_GOAL * 100, 1))
 
-    # レース週練習メニュー（ダニエルズ式テーパー）
+    # レース週練習メニュー（次のレースが今月かつ未来の場合のみ表示）
+    days_to_race  = (_NEXT_RACE - today).days if _NEXT_RACE else None
     race_week_plan = []
-    plan_map = {
-        0: ("今日", "🟢 イージー 8km（E ペース 5:10-5:30）筋肉を起こす程度"),
-        1: ("明日", "🟢 イージー 6km または完全休養"),
-        2: ("+2日",  "🟢 イージー 8km＋最後にストライド 4本×100m"),
-        3: ("+3日",  "🟢 イージー 5km（軽め）"),
-        4: ("+4日",  "😴 完全休養 or ジョグ 3km のみ"),
-        5: ("+5日",  "😴 完全休養（レース2日前）"),
-        6: ("+6日",  "🔴 ジョグ 3km＋ストライド 2本（前日：脚を動かすだけ）"),
-        7: ("+7日",  f"🏆 <strong>{_RACE_NAME}</strong>"),
-    }
-    for delta in range(8):
-        target_date = today + timedelta(days=delta)
-        if target_date > _NEXT_RACE: break
-        label, menu = plan_map.get(delta, ("", ""))
-        day_str = target_date.strftime("%-m/%-d") + f"（{['月','火','水','木','金','土','日'][target_date.weekday()]}）"
-        is_race = (target_date == _NEXT_RACE)
-        race_week_plan.append((day_str, label, menu, is_race))
+    if _NEXT_RACE and 0 <= days_to_race <= 14:
+        plan_map = {
+            0: ("今日",  "🟢 イージー 8km（E ペース）筋肉を起こす程度"),
+            1: ("明日",  "🟢 イージー 6km または完全休養"),
+            2: ("+2日",  "🟢 イージー 8km＋最後にストライド 4本×100m"),
+            3: ("+3日",  "🟢 イージー 5km（軽め）"),
+            4: ("+4日",  "😴 完全休養 or ジョグ 3km のみ"),
+            5: ("+5日",  "😴 完全休養（レース2日前）"),
+            6: ("+6日",  "🔴 ジョグ 3km＋ストライド 2本（前日：脚を動かすだけ）"),
+            7: ("+7日",  f"🏆 <strong>{_RACE_NAME}</strong>"),
+        }
+        for delta in range(8):
+            target_date = today + timedelta(days=delta)
+            if target_date > _NEXT_RACE: break
+            label, menu = plan_map.get(delta, ("", ""))
+            day_str = target_date.strftime("%-m/%-d") + f"（{['月','火','水','木','金','土','日'][target_date.weekday()]}）"
+            is_race = (target_date == _NEXT_RACE)
+            race_week_plan.append((day_str, label, menu, is_race))
 
     # HTML 組み立て
     plan_rows = ""
@@ -372,19 +400,17 @@ def build_top_plan(runs):
       <!-- 傾向 & レースカウントダウン -->
       <div class="top-plan-grid">
         <div class="plan-box trend-box">
-          <div class="plan-label">📈 今月の練習傾向</div>
+          <div class="plan-label">📈 {MONTH_LABEL}の練習傾向</div>
           <p style="font-size:13px;line-height:1.8;color:#4a5568">{trend_txt}
-            東京マラソン（3/1）からの回復を経て、週間距離が
-            {'→'.join(f'<strong>{v:.0f}km</strong>' for v in week_vols)} と推移。
-            レース週にかけて適切なテーパリングに入っています。
+            週間距離が {'→'.join(f'<strong>{v:.0f}km</strong>' for v in week_vols)} と推移。
           </p>
         </div>
-        <div class="plan-box race-box">
-          <div class="plan-label">🗓 次のレース</div>
-          <div class="race-name">{_RACE_NAME}</div>
-          <div class="race-date">3月28日</div>
-          <div class="race-days">あと <span>{days_to_race}</span> 日</div>
-        </div>
+        {'<div class="plan-box race-box"><div class="plan-label">🗓 次のレース</div>' +
+         f'<div class="race-name">{_RACE_NAME}</div>' +
+         f'<div class="race-date">{_NEXT_RACE.strftime("%-m月%-d日")}</div>' +
+         f'<div class="race-days">あと <span>{days_to_race}</span> 日</div></div>'
+         if _NEXT_RACE and days_to_race is not None and days_to_race >= 0
+         else '<div class="plan-box" style="text-align:center;color:#a0aec0;font-size:13px;display:flex;align-items:center;justify-content:center">次のレースは未登録</div>'}
       </div>
 
       <!-- 月間200km進捗（JS インタラクティブ） -->
@@ -482,7 +508,7 @@ def build_top_plan(runs):
         </script>
       </div>
 
-      <!-- レース週練習メニュー -->
+      {f'''<!-- レース週練習メニュー -->
       <div class="plan-box">
         <div class="plan-label">📋 レース週 推奨練習メニュー（ダニエルズ式テーパー）</div>
         <table style="width:100%;border-collapse:collapse;margin-top:10px">
@@ -498,7 +524,7 @@ def build_top_plan(runs):
         <p style="font-size:11px;color:#a0aec0;margin-top:10px">
           ※ テーパー期の原則：スピードは落とさずに量を減らす。最終3日はなるべく安静に。
         </p>
-      </div>
+      </div>''' if race_week_plan else ''}
 
     </div>"""
 
@@ -912,7 +938,7 @@ by_week = defaultdict(lambda: {"dist": 0.0, "runs": 0, "sec": 0})
 for r in runs:
     try:
         d = date.fromisoformat(r["date"])
-        w = (d - date(2026, 3, 1)).days // 7 + 1
+        w = (d - MONTH_START).days // 7 + 1
         by_week[w]["dist"] += float(r["distance_km"] or 0)
         by_week[w]["runs"] += 1
         by_week[w]["sec"]  += parse_time_sec(r["moving_time"])
@@ -1009,7 +1035,7 @@ html = f"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>🏃 Strava 2026年3月 ランニングレポート</title>
+<title>🏃 Strava {MONTH_LABEL} ランニングレポート</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1140,7 +1166,7 @@ html = f"""<!DOCTYPE html>
 <body>
 
 <div class="header">
-  <h1>🏃 2026年3月 ランニングレポート</h1>
+  <h1>🏃 {MONTH_LABEL} ランニングレポート</h1>
   <p>Strava データより生成 — {date.today()}</p>
 </div>
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Strava 2026年3月 ランニングデータ取得
+Strava ランニングデータ取得（現在月を自動検出）
 - レート制限をヘッダーで先読みし、上限手前で自動待機
 - 取得済みアクティビティはキャッシュから読み込み（2回目以降は API 不使用）
 - ランニング種目のみ対象
-- 出力: runs_march2026.csv（1行1アクティビティ）
-       runs_march2026_laps.csv（1行1ラップ）
+- 出力: runs_YYYYMM.csv / runs_YYYYMM_laps.csv / gps_streams.csv
+環境変数 TARGET_YEAR_MONTH=YYYY-MM で月を指定可能（省略時は当月）
 """
 
 import calendar
@@ -14,6 +14,7 @@ import json
 import os
 import time
 import webbrowser
+from datetime import date
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -38,6 +39,25 @@ TOKEN_FILE    = "strava_tokens.json"
 CACHE_DIR     = ".strava_cache"
 DETAILS_DIR   = os.path.join(CACHE_DIR, "details")
 STREAMS_DIR   = os.path.join(CACHE_DIR, "streams")
+
+# ── 対象月の決定（環境変数 or 当月） ──────────────────────────────────────
+_ym_env = os.environ.get("TARGET_YEAR_MONTH", "")  # 例: "2026-03"
+if _ym_env:
+    _target_year  = int(_ym_env.split("-")[0])
+    _target_month = int(_ym_env.split("-")[1])
+else:
+    _today = date.today()
+    _target_year  = _today.year
+    _target_month = _today.month
+
+TARGET_YEAR  = _target_year
+TARGET_MONTH = _target_month
+YYYYMM       = f"{TARGET_YEAR}{TARGET_MONTH:02d}"
+MONTH_LABEL  = f"{TARGET_YEAR}年{TARGET_MONTH}月"
+
+RUNS_CSV    = f"runs_{YYYYMM}.csv"
+LAPS_CSV    = f"runs_{YYYYMM}_laps.csv"
+STREAMS_CSV = "gps_streams.csv"
 
 # ── レート制限状態 ─────────────────────────────────────────────────────────
 # 読み取り専用エンドポイントの制限: 100 req/15min, 1000 req/day
@@ -173,10 +193,13 @@ def _save_cache(activity_id, data):
 # ── データ取得 ─────────────────────────────────────────────────────────────
 RUN_TYPES = {"Run", "TrailRun", "VirtualRun", "Treadmill"}
 
-def fetch_march_runs(access_token):
-    """2026年3月のランニングアクティビティ一覧を取得"""
-    after  = int(calendar.timegm(time.strptime("2026-03-01", "%Y-%m-%d")))
-    before = int(calendar.timegm(time.strptime("2026-04-01", "%Y-%m-%d")))
+def fetch_month_runs(access_token, year=None, month=None):
+    """指定月（省略時は当月）のランニングアクティビティ一覧を取得"""
+    y = year  or TARGET_YEAR
+    m = month or TARGET_MONTH
+    last_day = calendar.monthrange(y, m)[1]
+    after  = int(calendar.timegm(time.strptime(f"{y}-{m:02d}-01",       "%Y-%m-%d")))
+    before = int(calendar.timegm(time.strptime(f"{y}-{m:02d}-{last_day}", "%Y-%m-%d"))) + 86400
     runs, page = [], 1
     while True:
         batch = api_get("/athlete/activities", access_token,
@@ -271,7 +294,8 @@ def _hms(seconds):
     h, r = divmod(int(seconds), 3600); m, s = divmod(r, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
-def export_runs_csv(details, filename="runs_march2026.csv"):
+def export_runs_csv(details, filename=None):
+    if filename is None: filename = RUNS_CSV
     fields = [
         "activity_id", "name", "date", "weekday", "sport_type",
         "distance_km", "moving_time", "elapsed_time", "pace_per_km",
@@ -308,7 +332,8 @@ def export_runs_csv(details, filename="runs_march2026.csv"):
         w.writeheader(); w.writerows(rows)
     print(f"✓ {filename}  ({len(rows)} 件)")
 
-def export_laps_csv(details, filename="runs_march2026_laps.csv"):
+def export_laps_csv(details, filename=None):
+    if filename is None: filename = LAPS_CSV
     fields = [
         "activity_id", "date", "activity_name",
         "lap_index", "lap_name",
@@ -349,12 +374,12 @@ def main():
         CLIENT_ID     = input("Client ID: ").strip()
         CLIENT_SECRET = input("Client Secret: ").strip()
 
-    print("\n=== Strava 2026年3月 ランデータ取得 ===\n")
+    print(f"\n=== Strava {MONTH_LABEL} ランデータ取得 ===\n")
     tokens = get_tokens()
     access_token = tokens["access_token"]
 
-    print("\n[1/3] 2026年3月のランニングを検索中...")
-    runs = fetch_march_runs(access_token)
+    print(f"\n[1/3] {MONTH_LABEL}のランニングを検索中...")
+    runs = fetch_month_runs(access_token)
     print(f"  → {len(runs)} 件のランニングを発見")
 
     print("\n[2/4] 詳細を取得（キャッシュ優先）...")
@@ -377,8 +402,8 @@ def main():
     export_streams_csv(details, streams_map)
 
     print("\n=== 完了 ===")
-    print("  runs_march2026.csv       - アクティビティ一覧")
-    print("  runs_march2026_laps.csv  - ラップ詳細")
+    print(f"  {RUNS_CSV}  - アクティビティ一覧")
+    print(f"  {LAPS_CSV}  - ラップ詳細")
     print("  gps_streams.csv          - GPS ストリーム（3km 以上）")
     print("\n次のステップ:")
     print("  python3 report_html.py  # HTML レポート生成")
