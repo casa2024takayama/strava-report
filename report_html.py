@@ -35,18 +35,34 @@ _WEIGHT_KG    = 65
 _HEIGHT_CM    = 174
 _MONTH_GOAL   = 200   # km/月
 
-# ── レーススケジュール（過去も含めて列挙、自動で次のレースを選択） ─────────
-_RACES = [
-    (date(2026, 3,  1),  "東京マラソン2026",    42.195),
-    (date(2026, 3, 28),  "ふくい桜マラソン",    42.195),
-    # ↓ 次のレースをここに追加
-    # (date(2026, 10, 18), "大阪マラソン",       42.195),
-]
+# ── レーススケジュール（races.json から自動読み込み） ────────────────────────
+_RACES_FILE = "races.json"
+def _load_races():
+    if os.path.exists(_RACES_FILE):
+        with open(_RACES_FILE) as f:
+            data = json.load(f)
+        return [(date.fromisoformat(r["date"]), r["name"], float(r["dist_km"]))
+                for r in data]
+    return []
+
+_RACES     = _load_races()
 _today_ref = date.today()
-_next_races  = [(d, n, dist) for d, n, dist in _RACES if d >= _today_ref]
-_NEXT_RACE   = _next_races[0][0]   if _next_races else None
-_RACE_NAME   = _next_races[0][1]   if _next_races else None
-_RACE_DIST   = _next_races[0][2]   if _next_races else 42.195
+_next_races = [(d, n, dist) for d, n, dist in _RACES if d >= _today_ref]
+_NEXT_RACE  = _next_races[0][0]  if _next_races else None
+_RACE_NAME  = _next_races[0][1]  if _next_races else None
+_RACE_DIST  = _next_races[0][2]  if _next_races else 42.195
+
+# 月間200kmドロップダウン用：今月以降の次レース + 定番オプション
+_month_next = [(d, n, dist) for d, n, dist in _next_races
+               if d.year == TARGET_YEAR and d.month == TARGET_MONTH]
+_race_select_opts = ""
+for _d, _n, _dist in _month_next:
+    _race_select_opts += f'<option value="{_dist}">{_n} +{_dist:.1f}km</option>\n              '
+if not any(abs(_dist - 42.195) < 0.5 for _, _, _dist in _month_next):
+    _race_select_opts += '<option value="42.2">フルマラソン ＋42.2km</option>\n              '
+if not any(abs(_dist - 21.0975) < 0.5 for _, _, _dist in _month_next):
+    _race_select_opts += '<option value="21.1">ハーフマラソン ＋21.1km</option>\n              '
+_race_select_opts += '<option value="0">レースなし（走行距離のみ）</option>'
 _VO2MAX       = 59    # Garmin 計測 VO2Max（HTML上でスライダー変更可能）
 _GOAL_1_SEC   = 3*3600 + 10*60   # Sub 3:10
 _GOAL_ULT_SEC = 3*3600            # Sub 3:00
@@ -547,9 +563,7 @@ def build_top_plan(runs):
             <select id="race-select" onchange="updateGoalBar()"
               style="font-size:12px;padding:4px 8px;border:1px solid #e2e8f0;
                      border-radius:8px;background:#fff;color:#4a5568;cursor:pointer">
-              <option value="42.2">フルマラソン ＋42.2km</option>
-              <option value="21.1">ハーフマラソン ＋21.1km</option>
-              <option value="0">レースなし（走行距離のみ）</option>
+              {_race_select_opts}
             </select>
           </div>
         </div>
@@ -651,6 +665,153 @@ def build_top_plan(runs):
       </div>''' if race_week_plan else ''}
 
     </div>"""
+
+
+# ── 週次練習メニュー（固定テンプレート対実績評価） ────────────────────────────
+# 月曜始まり・VO2Max 59 基準・週40〜44km目標プラン
+_WEEKLY_PLAN = [
+    # (weekday 0=Mon, type_key, label, target_km, description)
+    (0, "easy",     "イージー走",   7,  "有酸素ベース・E ペース 4:51〜5:12/km"),
+    (1, "interval", "インターバル", 6,  "VO₂max向上・I ペース 3:41/km × 5〜6本"),
+    (2, "rest",     "休養",         0,  "完全休養"),
+    (3, "tempo",    "テンポ走",     8,  "乳酸閾値向上・T ペース 4:04〜4:11/km"),
+    (4, "easy",     "回復走",       5,  "軽め E ペース・筋疲労リセット"),
+    (5, "long",     "ロング走",     18, "有酸素基礎・脂質代謝・E〜M ペース"),
+    (6, "rest",     "休養",         0,  "完全休養 or ストレッチのみ"),
+]
+
+def _detect_plan_type(day_runs):
+    """複数ランの中で最長をもとに練習種別を推定"""
+    if not day_runs: return None
+    main = max(day_runs, key=lambda r: float(r.get("distance_km") or 0))
+    label = training_type(main)[0]
+    return {"ロング走": "long", "インターバル": "interval",
+            "テンポ走": "tempo", "イージー走": "easy"}.get(label, "easy")
+
+def build_weekly_menu(runs):
+    """今週（月曜始まり）の固定テンプレートに対する実績評価HTML"""
+    today      = date.today()
+    mon        = today - timedelta(days=today.weekday())
+    week_dates = [mon + timedelta(days=i) for i in range(7)]
+    day_labels = ["月", "火", "水", "木", "金", "土", "日"]
+
+    # 今週の実績をdateごとに集める（複数走行対応）
+    runs_by_date = defaultdict(list)
+    for r in runs:
+        try:
+            d = date.fromisoformat(r["date"])
+            if mon <= d <= mon + timedelta(days=6):
+                runs_by_date[d].append(r)
+        except: pass
+
+    rows           = ""
+    week_actual_km = 0.0
+    week_target_km = sum(t[3] for t in _WEEKLY_PLAN)
+    _type_names    = {"easy": "イージー", "interval": "インターバル",
+                      "tempo": "テンポ走",  "long": "ロング走", "rest": "休養"}
+
+    for i, (_, plan_type, plan_label, plan_dist, plan_desc) in enumerate(_WEEKLY_PLAN):
+        d         = week_dates[i]
+        day_runs  = runs_by_date.get(d, [])
+        actual_km = sum(float(r.get("distance_km") or 0) for r in day_runs)
+        week_actual_km += actual_km
+        is_today  = (d == today)
+        is_future = (d > today)
+
+        # ── 評価ロジック ──────────────────────────────────────────────────
+        if plan_type == "rest":
+            if actual_km > 3:
+                icon, icolor = "⚠️", "#f59e0b"
+                eval_txt = f"予定休養日 → {actual_km:.1f}km 走行。疲労蓄積に注意。"
+            elif actual_km > 0:
+                icon, icolor = "✅", "#22c55e"
+                eval_txt = f"軽めジョグ {actual_km:.1f}km。回復促進に有効。"
+            elif is_future or is_today:
+                icon, icolor = "⬜", "#a0aec0"
+                eval_txt = plan_desc
+            else:
+                icon, icolor = "✅", "#22c55e"
+                eval_txt = "休養完了"
+        elif is_future:
+            icon, icolor = "⬜", "#a0aec0"
+            eval_txt = plan_desc
+        elif actual_km == 0:
+            icon, icolor = "❌", "#ef4444"
+            eval_txt = f"未実施（予定: {plan_label} {plan_dist}km）"
+        else:
+            actual_type = _detect_plan_type(day_runs)
+            main_run    = max(day_runs, key=lambda r: float(r.get("distance_km") or 0))
+            pace_str    = main_run.get("pace_per_km", "-")
+            plan_name   = _type_names.get(plan_type, plan_label)
+            actual_name = _type_names.get(actual_type, "")
+
+            if actual_km >= plan_dist * 0.7 and actual_type == plan_type:
+                icon, icolor = "✅", "#22c55e"
+                eval_txt = f"◎ {actual_km:.1f}km / {pace_str}/km — {plan_name}として良好"
+            elif actual_km >= plan_dist * 0.7 and actual_type != plan_type:
+                icon, icolor = "🔄", "#3b82f6"
+                if plan_type == "easy" and actual_type in ("interval", "tempo"):
+                    eval_txt = f"⚡ {plan_name}予定 → {actual_name}（強度高め / {actual_km:.1f}km）。翌日休養推奨。"
+                elif plan_type in ("interval", "tempo") and actual_type == "easy":
+                    eval_txt = f"🔄 {plan_name}予定 → {actual_name}（回復優先 / {actual_km:.1f}km）。翌週補填を検討。"
+                elif plan_type == "long" and actual_type != "long":
+                    eval_txt = f"📏 ロング走予定 → {actual_name} {actual_km:.1f}km / {pace_str}/km。ロングは来週補填を。"
+                else:
+                    eval_txt = f"🔄 {plan_name}予定 → {actual_name} {actual_km:.1f}km / {pace_str}/km"
+            else:
+                icon, icolor = "⚠️", "#f59e0b"
+                eval_txt = f"{plan_dist}km 予定 → {actual_km:.1f}km（短縮） / {pace_str}/km"
+
+        # 複数ラン詳細タグ
+        run_tags = ""
+        if day_runs:
+            parts = [f"{float(r.get('distance_km') or 0):.1f}km/{r.get('pace_per_km','-')}/km"
+                     for r in day_runs]
+            run_tags = f'<span style="font-size:11px;color:#718096;margin-left:6px">({" + ".join(parts)})</span>'
+
+        today_bg  = "background:#fffbeb;" if is_today else ""
+        dist_str  = f"{plan_dist}km" if plan_dist > 0 else "—"
+        day_color = "#fc4c02" if is_today else "#4a5568"
+        day_fw    = "700" if is_today else "400"
+
+        rows += f"""
+        <tr style="{today_bg}">
+          <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">{icon}</td>
+          <td style="width:28px;font-weight:{day_fw};color:{day_color};font-size:13px;padding:8px 4px">{day_labels[i]}</td>
+          <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
+            {plan_label} <span style="font-size:11px;font-weight:400;color:#a0aec0">{dist_str}</span>
+          </td>
+          <td style="font-size:12px;color:{icolor};padding:8px 8px;line-height:1.6">
+            {eval_txt}{run_tags}
+          </td>
+        </tr>"""
+
+    week_start_str = mon.strftime("%-m/%-d")
+    week_end_str   = (mon + timedelta(days=6)).strftime("%-m/%-d")
+    remaining_km   = max(0, week_target_km - week_actual_km)
+    prog_pct       = min(100, round(week_actual_km / week_target_km * 100)) if week_target_km else 0
+    prog_color     = "#22c55e" if week_actual_km >= week_target_km else "#3b82f6"
+    status_txt     = "✅ 週目標達成！" if week_actual_km >= week_target_km else f"残り {remaining_km:.1f}km"
+
+    return f"""
+    <div class="plan-box" style="margin-bottom:24px">
+      <div class="plan-label">📅 今週の練習メニュー（{week_start_str}〜{week_end_str} / 週{week_target_km}km目標）</div>
+      <div style="font-size:11px;color:#a0aec0;margin-bottom:10px">
+        固定プランに対する実績を自動評価。月曜始まり・VO₂Max 59 基準。
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+        <tbody>{rows}</tbody>
+      </table>
+      <div style="height:8px;background:#e2e8f0;border-radius:4px;margin-bottom:8px;overflow:hidden">
+        <div style="height:8px;background:{prog_color};border-radius:4px;width:{prog_pct}%"></div>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#718096">
+        <span>週実績: <strong style="color:#2d3748">{week_actual_km:.1f}km</strong></span>
+        <span>週目標: <strong>{week_target_km}km</strong></span>
+        <span style="color:{prog_color};font-weight:700">{status_txt}</span>
+      </div>
+    </div>"""
+
 
 # ── 10点満点スコアリング ──────────────────────────────────────────────────
 def score_run(run, laps, run_type):
@@ -1314,6 +1475,8 @@ html = f"""<!DOCTYPE html>
   {build_performance_profile()}
 
   {build_top_plan(runs)}
+
+  {build_weekly_menu(runs)}
 
   <!-- サマリーカード -->
   <div class="cards">
