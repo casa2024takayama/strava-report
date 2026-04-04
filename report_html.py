@@ -48,8 +48,6 @@ _NEXT_RACE   = _next_races[0][0]   if _next_races else None
 _RACE_NAME   = _next_races[0][1]   if _next_races else None
 _RACE_DIST   = _next_races[0][2]   if _next_races else 42.195
 _VO2MAX       = 59    # Garmin 計測 VO2Max（HTML上でスライダー変更可能）
-_CURRENT_PB   = "3:21:00"   # フルマラソン自己ベスト（非表示）
-_CURRENT_PB_SEC = 3*3600 + 21*60  # 12060 sec
 _GOAL_1_SEC   = 3*3600 + 10*60   # Sub 3:10
 _GOAL_ULT_SEC = 3*3600            # Sub 3:00
 # VDOT 59 ダニエルズ基準ペース（秒/km）※スライダーで動的変更
@@ -92,6 +90,11 @@ for _k, _m in _PB_META.items():
         "sub310": _riegel(_FULL_310, 42.195, _m["dist_km"]),
         "sub300": _riegel(_FULL_300, 42.195, _m["dist_km"]),
     }
+
+# フルマラソンPBは pbs.json から自動取得
+_pbs_raw = load_pbs()
+_CURRENT_PB_SEC = _pbs_raw.get("full", {}).get("time_sec", 3*3600+17*60+1)
+_CURRENT_PB     = _sec_to_str(_CURRENT_PB_SEC)
 
 # ── ユーティリティ ─────────────────────────────────────────────────────────
 def parse_time_sec(t):
@@ -232,9 +235,18 @@ def build_pb_ladder(pbs):
 def build_performance_profile():
     """VO2Max・VDOT・目標タイム・練習ペース・Sub-3ロードマップ HTML"""
 
-    vdot_pb  = 52   # PB 3:21 ≈ VDOT 52
+    # VDOT をフルマラソンPBから推定（Daniels 近似式）
+    import math as _math
+    def _sec_to_vdot(sec):
+        v   = 42195 / sec * 60  # m/min
+        vo2 = -4.6 + 0.182258*v + 0.000104*v**2
+        t   = sec / 60
+        pct = 0.8 + 0.1894393*_math.exp(-0.012778*t) + 0.2989558*_math.exp(-0.1932605*t)
+        return round(vo2 / pct, 1)
+    vdot_pb  = _sec_to_vdot(_CURRENT_PB_SEC)  # 3:17:01 → VDOT ≈ 54
+    vdot_pb_int = round(vdot_pb)
     vdot_vo2 = _VO2MAX
-    vdot_gap = vdot_vo2 - vdot_pb
+    vdot_gap = round(vdot_vo2 - vdot_pb, 1)
 
     return f"""
     <div class="perf-section">
@@ -287,7 +299,7 @@ def build_performance_profile():
                width:24px;height:24px;z-index:2;transition:left .3s"></div>
           <div id="vdot-label" style="position:absolute;top:30px;transform:translateX(-50%);
                font-size:10px;color:#3b82f6;font-weight:700;white-space:nowrap;transition:left .3s"></div>
-          <div style="position:absolute;left:0;top:30px;font-size:10px;color:#718096">VDOT {vdot_pb}<br>（PB 3:21）</div>
+          <div style="position:absolute;left:0;top:30px;font-size:10px;color:#718096">VDOT {vdot_pb_int}<br>（PB {_CURRENT_PB}）</div>
           <div style="position:absolute;left:64%;top:30px;transform:translateX(-50%);
                font-size:10px;color:#f59e0b;font-weight:700;white-space:nowrap">VDOT 59<br>Sub 3:10</div>
           <div style="position:absolute;right:0;top:30px;text-align:right;
@@ -398,7 +410,7 @@ def build_performance_profile():
         window.updateVdot = function(v) {{
           v = parseInt(v);
           const p = interp(v);
-          const VDOT_PB=52, VDOT_G1=59, VDOT_ULT=63;
+          const VDOT_PB={vdot_pb_int}, VDOT_G1=59, VDOT_ULT=63;
 
           // 表示更新
           document.getElementById('vo2-display').textContent = v;
