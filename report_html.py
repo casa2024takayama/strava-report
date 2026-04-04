@@ -856,7 +856,7 @@ def coaching_comment(run, laps):
 
 def coaching_sections(gps_map):
     sections = []
-    target = sorted([r for r in runs if float(r.get("distance_km") or 0) >= 3],
+    target = sorted([r for r in runs if float(r.get("distance_km") or 0) >= 1.5],
                     key=lambda r: r["date"], reverse=True)
     for r in target:
         aid  = str(r["activity_id"])
@@ -1242,7 +1242,7 @@ html = f"""<!DOCTYPE html>
 
   <!-- コーチングレビュー -->
   <div class="section">
-    <h2>🏅 練習レビュー（3km以上 / VO₂Max 58 基準 / ダニエルズ・Pfitzinger・Hansons・80/20）</h2>
+    <h2>🏅 練習レビュー（1.5km以上 / VO₂Max 59 基準 / ダニエルズ・Pfitzinger・Hansons・80/20）</h2>
     {coaching_sections(gps_map)}
   </div>
 
