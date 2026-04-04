@@ -671,14 +671,16 @@ def build_top_plan(runs):
 # 月曜始まり・VO2Max 59 基準・週40〜44km目標プラン
 _WEEKLY_PLAN = [
     # (weekday 0=Mon, type_key, label, target_km, description)
-    (0, "easy",     "イージー走",   7,  "有酸素ベース・E ペース 4:51〜5:12/km"),
-    (1, "interval", "インターバル", 6,  "VO₂max向上・I ペース 3:41/km × 5〜6本"),
-    (2, "rest",     "休養",         0,  "完全休養"),
-    (3, "tempo",    "テンポ走",     8,  "乳酸閾値向上・T ペース 4:04〜4:11/km"),
-    (4, "easy",     "回復走",       5,  "軽め E ペース・筋疲労リセット"),
-    (5, "long",     "ロング走",     18, "有酸素基礎・脂質代謝・E〜M ペース"),
-    (6, "rest",     "休養",         0,  "完全休養 or ストレッチのみ"),
+    # 目標: 週45〜50km・5000mスピード強化フェーズ（VDOT 51 基準）
+    (0, "rest",     "休養",           0,  "完全休養"),
+    (1, "tempo",    "中強度+スピード", 7,  "持久走 6km（M〜T ペース）＋ 200m×5本"),
+    (2, "easy",     "イージー走",      8,  "低強度ジョグ・E ペース 4:51〜5:12/km"),
+    (3, "tempo",    "ペース変化走",   10,  "前半 E ペース → ラスト 2〜4km を M ペース（4:24/km）に上げる"),
+    (4, "rest",     "休養",           0,  "完全休養 or 軽ジョグ 5km 以内"),
+    (5, "interval", "インターバル",    8,  "1000m×5本（3:48〜3:54/km）休息2分・W-up/C-down込み"),
+    (6, "long",     "ロング走",       15,  "低強度ジョグ 15〜20km・E〜M ペース"),
 ]
+_WEEKLY_PLAN_RANGE = "45〜50"  # 表示用レンジ（実計は sum of target_km）
 
 def _detect_plan_type(day_runs):
     """複数ランの中で最長をもとに練習種別を推定"""
@@ -795,9 +797,9 @@ def build_weekly_menu(runs):
 
     return f"""
     <div class="plan-box" style="margin-bottom:24px">
-      <div class="plan-label">📅 今週の練習メニュー（{week_start_str}〜{week_end_str} / 週{week_target_km}km目標）</div>
+      <div class="plan-label">📅 今週の練習メニュー（{week_start_str}〜{week_end_str} / 週{_WEEKLY_PLAN_RANGE}km目標）</div>
       <div style="font-size:11px;color:#a0aec0;margin-bottom:10px">
-        固定プランに対する実績を自動評価。月曜始まり・VO₂Max 59 基準。
+        固定プランに対する実績を自動評価。月曜始まり・VDOT 51（現走力）基準。
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
         <tbody>{rows}</tbody>
