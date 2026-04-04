@@ -4,7 +4,7 @@ Strava HTML レポート生成（現在月を自動検出）
 環境変数 TARGET_YEAR_MONTH=YYYY-MM で月を指定可能（省略時は当月）
 """
 
-import csv, json, os
+import csv, json, os, glob, re
 from collections import defaultdict
 from datetime import date, timedelta
 import calendar as _cal_mod
@@ -25,10 +25,41 @@ MONTH_START  = date(TARGET_YEAR, TARGET_MONTH, 1)
 MONTH_END    = date(TARGET_YEAR, TARGET_MONTH,
                     _cal_mod.monthrange(TARGET_YEAR, TARGET_MONTH)[1])
 
-RUNS_CSV    = f"runs_{YYYYMM}.csv"
-LAPS_CSV    = f"runs_{YYYYMM}_laps.csv"
-STREAMS_CSV = "gps_streams.csv"
-OUTPUT      = "index.html"
+RUNS_CSV      = f"runs_{YYYYMM}.csv"
+LAPS_CSV      = f"runs_{YYYYMM}_laps.csv"
+STREAMS_CSV   = "gps_streams.csv"
+ARCHIVE_FILE  = f"{YYYYMM}.html"   # 月別アーカイブ（永続）
+OUTPUT        = "index.html"        # 常に当月を index.html にも書く
+
+# ── 月別ナビゲーション ─────────────────────────────────────────────────────
+def _available_months():
+    """ディレクトリ内の月別HTMLファイルを新しい順で返す"""
+    pat = re.compile(r'^(20\d{2})(\d{2})\.html$')
+    months = []
+    for f in glob.glob("20*.html"):
+        m = pat.match(f)
+        if m:
+            y, mo = int(m.group(1)), int(m.group(2))
+            months.append((y, mo, f))
+    months.sort(reverse=True)
+    return months
+
+def build_month_nav():
+    months = _available_months()
+    # 現在生成中の月が未ファイルでも必ずタブに含める
+    current = (TARGET_YEAR, TARGET_MONTH, ARCHIVE_FILE)
+    if current not in months:
+        months.append(current)
+        months.sort(reverse=True)
+    if len(months) <= 1:
+        return ""
+    tabs = ""
+    for y, mo, fname in months:
+        is_cur = (y == TARGET_YEAR and mo == TARGET_MONTH)
+        label  = f"{y}年{mo}月{'（当月）' if is_cur else ''}"
+        style  = "month-tab-active" if is_cur else "month-tab"
+        tabs  += f'<a href="{fname}" class="{style}">{label}</a>'
+    return f'<nav class="month-nav">{tabs}</nav>'
 
 # ── アスリートプロフィール（表示には使用しない） ───────────────────────────
 _WEIGHT_KG    = 65
@@ -1511,6 +1542,17 @@ html = f"""<!DOCTYPE html>
     .coach-layout {{ grid-template-columns: 1fr }}
     .run-map {{ border-left:none;border-top:1px solid #e2e8f0 }}
   }}
+  /* 月別ナビゲーション */
+  .month-nav {{ background:#1a202c;padding:0 20px;display:flex;gap:4px;overflow-x:auto;
+               -webkit-overflow-scrolling:touch }}
+  .month-tab,.month-tab-active {{ display:inline-block;padding:10px 16px;font-size:13px;
+    font-weight:600;text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent }}
+  .month-tab {{ color:#a0aec0 }}
+  .month-tab:hover {{ color:#fff }}
+  .month-tab-active {{ color:#fc4c02;border-bottom-color:#fc4c02 }}
+  @media(max-width:480px){{
+    .month-tab,.month-tab-active {{ padding:8px 12px;font-size:12px }}
+  }}
   @media(max-width:480px){{
     /* アクティビティ表：標高列を非表示 */
     .act-col-elev {{ display:none }}
@@ -1535,6 +1577,8 @@ html = f"""<!DOCTYPE html>
 </style>
 </head>
 <body>
+
+{build_month_nav()}
 
 <div class="header">
   <h1>🏃 {MONTH_LABEL} ランニングレポート</h1>
@@ -1719,8 +1763,11 @@ new Chart(document.getElementById('paceChart'), {{
 </html>
 """
 
+with open(ARCHIVE_FILE, "w", encoding="utf-8") as f:
+    f.write(html)
 with open(OUTPUT, "w", encoding="utf-8") as f:
     f.write(html)
 
-print(f"✓ {OUTPUT} を生成しました")
+print(f"✓ {ARCHIVE_FILE} を生成しました（月別アーカイブ）")
+print(f"✓ {OUTPUT} を更新しました（当月）")
 print(f"  → open \"{OUTPUT}\"")
