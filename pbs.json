@@ -1,0 +1,44 @@
+{
+  "1mile": {
+    "time_sec": 347,
+    "time_str": "5:47",
+    "activity_id": "17969030036",
+    "date": "2026-04-04",
+    "source": "best_efforts"
+  },
+  "3km": {
+    "time_sec": 707,
+    "time_str": "11:47",
+    "activity_id": "17969113737",
+    "date": "2026-04-04",
+    "source": "manual"
+  },
+  "5km": {
+    "time_sec": 1177,
+    "time_str": "19:37",
+    "activity_id": "17969113737",
+    "date": "2026-04-04",
+    "source": "best_efforts"
+  },
+  "10km": {
+    "time_sec": 2536,
+    "time_str": "42:16",
+    "activity_id": "21655117701",
+    "date": "2025-01-01",
+    "source": "best_efforts"
+  },
+  "half": {
+    "time_sec": 5416,
+    "time_str": "1:30:16",
+    "activity_id": "21655117701",
+    "date": "2025-01-01",
+    "source": "best_efforts"
+  },
+  "full": {
+    "time_sec": 11821,
+    "time_str": "3:17:01",
+    "activity_id": "17895554181",
+    "date": "2026-03-29",
+    "source": "best_efforts"
+  }
+}

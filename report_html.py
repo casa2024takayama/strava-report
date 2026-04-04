@@ -59,6 +59,40 @@ _T_LO, _T_HI  = 244, 251   # 4:04-4:11/km  Threshold
 _I_PACE       = 221         # 3:41/km       Interval
 _R_PACE       = 207         # 3:27/km       Repetition
 
+# ── PB 読み込み ────────────────────────────────────────────────────────────
+_PBS_FILE = "pbs.json"
+_PB_META = {
+    "1mile": {"label": "1 Mile", "dist_km": 1.609},
+    "3km":   {"label": "3 km",   "dist_km": 3.0},
+    "5km":   {"label": "5 km",   "dist_km": 5.0},
+    "10km":  {"label": "10 km",  "dist_km": 10.0},
+    "half":  {"label": "Half",   "dist_km": 21.0975},
+    "full":  {"label": "Full",   "dist_km": 42.195},
+}
+# Riegel式: T2 = T1 × (D2/D1)^1.06
+def _riegel(t1_sec, d1_km, d2_km):
+    return int(t1_sec * (d2_km / d1_km) ** 1.06)
+
+def _sec_to_str(sec):
+    h, r = divmod(int(sec), 3600); m, s = divmod(r, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+def load_pbs():
+    if os.path.exists(_PBS_FILE):
+        with open(_PBS_FILE) as f:
+            return json.load(f)
+    return {}
+
+# Sub 3:10 / Sub 3:00 の各距離換算タイム（秒）
+_FULL_310 = 3*3600 + 10*60  # 11400
+_FULL_300 = 3*3600           # 10800
+_TARGETS = {}
+for _k, _m in _PB_META.items():
+    _TARGETS[_k] = {
+        "sub310": _riegel(_FULL_310, 42.195, _m["dist_km"]),
+        "sub300": _riegel(_FULL_300, 42.195, _m["dist_km"]),
+    }
+
 # ── ユーティリティ ─────────────────────────────────────────────────────────
 def parse_time_sec(t):
     if not t: return 0
@@ -115,6 +149,84 @@ def load_gps():
             if p.get("lat") and p.get("lng")
         ]
     return result
+
+# ── PB 階段セクション ──────────────────────────────────────────────────────
+def build_pb_ladder(pbs):
+    keys = ["1mile", "3km", "5km", "10km", "half", "full"]
+    cards = ""
+    for k in keys:
+        meta   = _PB_META[k]
+        pb     = pbs.get(k, {})
+        t310   = _TARGETS[k]["sub310"]
+        t300   = _TARGETS[k]["sub300"]
+        pb_sec = pb.get("time_sec")
+        pb_str = pb.get("time_str", "—")
+        pb_date= pb.get("date", "")
+        manual = pb.get("source") == "manual"
+
+        # 達成状況
+        if pb_sec:
+            reach310 = pb_sec <= t310
+            reach300 = pb_sec <= t300
+            # バー: 0% = 現在PBと同じ、100% = Sub3:00達成
+            # 範囲を t310〜t300 で可視化（t310が左端）
+            lo, hi = t300, t310   # 小さいほど良い（逆転）
+            bar_pct = max(0, min(100, int((t310 - pb_sec) / max(t310 - t300, 1) * 100))) if pb_sec else 0
+            if reach300:
+                status_color, status_txt = "#22c55e", "✅ Sub 3:00"
+            elif reach310:
+                status_color, status_txt = "#f59e0b", "✅ Sub 3:10"
+            else:
+                gap = pb_sec - t310
+                m, s = divmod(gap, 60)
+                status_color, status_txt = "#94a3b8", f"Sub 3:10 まで -{m}:{s:02d}"
+        else:
+            bar_pct, status_color, status_txt = 0, "#e2e8f0", "未計測"
+
+        manual_badge = '<span style="font-size:10px;color:#a0aec0;margin-left:4px">手入力</span>' if manual else ""
+
+        cards += f"""
+        <div class="pb-card">
+          <div class="pb-dist">{meta['label']}</div>
+          <div class="pb-time">{pb_str}{manual_badge}</div>
+          <div class="pb-date">{pb_date}</div>
+          <div class="pb-bar-bg">
+            <div class="pb-bar-fg" style="width:{bar_pct}%;background:{status_color}"></div>
+          </div>
+          <div class="pb-targets">
+            <span style="color:#f59e0b;font-size:10px">{_sec_to_str(t310)}</span>
+            <span style="color:{status_color};font-size:11px;font-weight:700">{status_txt}</span>
+            <span style="color:#22c55e;font-size:10px">{_sec_to_str(t300)}</span>
+          </div>
+        </div>"""
+
+    # 「最も伸びしろがある距離」を特定
+    gaps = {}
+    for k in keys:
+        pb_sec = pbs.get(k, {}).get("time_sec")
+        if pb_sec:
+            t310 = _TARGETS[k]["sub310"]
+            gaps[k] = pb_sec - t310  # マイナスなら達成済み
+
+    if gaps:
+        worst = max(gaps, key=lambda k: gaps[k])
+        if gaps[worst] > 0:
+            m, s = divmod(gaps[worst], 60)
+            next_target = f"<div style='font-size:12px;color:#4a5568;margin-top:12px'>📌 次の重点距離：<strong>{_PB_META[worst]['label']}</strong>（Sub 3:10 まで あと {m}:{s:02d}）</div>"
+        else:
+            next_target = "<div style='font-size:12px;color:#22c55e;margin-top:12px'>🎉 全距離で Sub 3:10 達成！Sub 3:00 に挑戦！</div>"
+    else:
+        next_target = ""
+
+    return f"""
+    <div class="plan-box" style="margin-bottom:24px">
+      <div class="plan-label">🏅 PB 階段（距離別自己ベスト）</div>
+      <div style="font-size:11px;color:#a0aec0;margin-bottom:12px">
+        バーは Sub 3:10〜Sub 3:00 相当タイムの範囲を示します。Strava の best_efforts から自動更新。
+      </div>
+      <div class="pb-ladder">{cards}</div>
+      {next_target}
+    </div>"""
 
 # ── パフォーマンスプロフィール & Sub-3 ロードマップ ───────────────────────
 def build_performance_profile():
@@ -1114,6 +1226,19 @@ html = f"""<!DOCTYPE html>
   .race-date {{ font-size:13px;color:#718096;margin-bottom:8px }}
   .race-days {{ font-size:13px;color:#4a5568 }}
   .race-days span {{ font-size:32px;font-weight:800;color:#dc2626;display:block }}
+  /* PB 階段 */
+  .pb-ladder {{ display:grid;grid-template-columns:repeat(6,1fr);gap:10px }}
+  .pb-card {{ background:#f8fafc;border-radius:10px;padding:12px 10px;text-align:center;
+              border:1px solid #e2e8f0 }}
+  .pb-dist {{ font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;
+              letter-spacing:.05em;margin-bottom:4px }}
+  .pb-time {{ font-size:17px;font-weight:800;color:#2d3748;margin-bottom:2px }}
+  .pb-date {{ font-size:10px;color:#a0aec0;margin-bottom:8px }}
+  .pb-bar-bg {{ height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:6px }}
+  .pb-bar-fg {{ height:6px;border-radius:3px;transition:width .4s }}
+  .pb-targets {{ display:flex;justify-content:space-between;align-items:center }}
+  @media(max-width:700px){{ .pb-ladder {{ grid-template-columns:repeat(3,1fr) }} }}
+  @media(max-width:400px){{ .pb-ladder {{ grid-template-columns:repeat(2,1fr) }} }}
   /* パフォーマンスプロフィール */
   .perf-section {{ margin-bottom:24px;display:flex;flex-direction:column;gap:16px }}
   .perf-grid {{ display:grid;grid-template-columns:1fr 220px;gap:16px }}
@@ -1171,6 +1296,8 @@ html = f"""<!DOCTYPE html>
 </div>
 
 <div class="container">
+
+  {build_pb_ladder(load_pbs())}
 
   {build_performance_profile()}
 

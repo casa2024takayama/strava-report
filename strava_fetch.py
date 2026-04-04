@@ -367,6 +367,64 @@ def export_laps_csv(details, filename=None):
         w.writeheader(); w.writerows(rows)
     print(f"✓ {filename}  ({len(rows)} ラップ)")
 
+# ── PB 自動更新 ────────────────────────────────────────────────────────────
+PBS_FILE = "pbs.json"
+
+# Strava best_efforts の name → pbs.json のキー対応
+_BE_MAP = {
+    "1 mile":        "1mile",
+    "5K":            "5km",
+    "10K":           "10km",
+    "Half-Marathon": "half",
+    "Marathon":      "full",
+}
+
+def _hms_to_sec(s):
+    parts = list(map(int, s.split(":")))
+    if len(parts) == 3: return parts[0]*3600 + parts[1]*60 + parts[2]
+    if len(parts) == 2: return parts[0]*60 + parts[1]
+    return int(parts[0])
+
+def update_pbs(details):
+    """全アクティビティの best_efforts を走査して pbs.json を更新"""
+    if os.path.exists(PBS_FILE):
+        with open(PBS_FILE) as f:
+            pbs = json.load(f)
+    else:
+        pbs = {}
+
+    updated = []
+    for d in details:
+        aid  = str(d.get("id"))
+        dt   = d.get("start_date_local", "")[:10]
+        for be in d.get("best_efforts", []):
+            key = _BE_MAP.get(be.get("name"))
+            if not key: continue
+            new_sec = be.get("moving_time")
+            if not new_sec: continue
+            old_sec = pbs.get(key, {}).get("time_sec", 999999)
+            if new_sec < old_sec:
+                h, r = divmod(new_sec, 3600); m, s = divmod(r, 60)
+                time_str = f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+                pbs[key] = {
+                    "time_sec":   new_sec,
+                    "time_str":   time_str,
+                    "activity_id": aid,
+                    "date":       dt,
+                    "source":     "best_efforts",
+                }
+                updated.append(f"  🏅 {key}: {time_str}（{dt}）")
+
+    with open(PBS_FILE, "w") as f:
+        json.dump(pbs, f, indent=2, ensure_ascii=False)
+
+    if updated:
+        print("\n🎉 PB更新！")
+        for u in updated: print(u)
+    else:
+        print("  PB更新なし")
+    return pbs
+
 # ── メイン ─────────────────────────────────────────────────────────────────
 def main():
     global CLIENT_ID, CLIENT_SECRET
@@ -396,7 +454,10 @@ def main():
         print(f"  ({i}/{len(targets)}) {d.get('name')}")
         streams_map[aid] = fetch_stream(aid, access_token)
 
-    print("\n[4/4] CSV 出力...")
+    print("\n[4/5] PB チェック・更新...")
+    update_pbs(details)
+
+    print("\n[5/5] CSV 出力...")
     export_runs_csv(details)
     export_laps_csv(details)
     export_streams_csv(details, streams_map)
