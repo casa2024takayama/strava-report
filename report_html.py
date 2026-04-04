@@ -73,6 +73,10 @@ _T_LO, _T_HI  = 244, 251   # 4:04-4:11/km  Threshold
 _I_PACE       = 221         # 3:41/km       Interval
 _R_PACE       = 207         # 3:27/km       Repetition
 
+# 現在の練習プラン基準ペース（VDOT 51 / 5km PB 19:37 実走力ベース）
+_TRAIN_I_LO = 228   # 3:48/km  インターバル設定ペース（速め限界）
+_TRAIN_I_HI = 234   # 3:54/km  インターバル設定ペース（遅め限界）
+
 # ── PB 読み込み ────────────────────────────────────────────────────────────
 _PBS_FILE = "pbs.json"
 _PB_META = {
@@ -839,12 +843,18 @@ def score_run(run, laps, run_type):
         elif pace > 315:         pace_score = 2.0   # 5:15+ OK だが遅め
         else:                    pace_score = 0.5   # 4:15 より速い NG
     elif run_type == "interval":
-        # I ペース 3:43/km ± 7秒 (216-230秒) が理想
-        if not pace: pace_score = 1.0
-        elif 216 <= pace <= 230: pace_score = 2.5   # 3:36-3:50 ◎ I zone
-        elif 210 <= pace < 216:  pace_score = 2.0   # やや速いが OK
-        elif 230 <= pace <= 250: pace_score = 1.5   # T-pace 寄り
-        else:                    pace_score = 0.5
+        # インターバル本番ラップの平均ペースで評価（W-up/C-down を除外）
+        efforts    = extract_interval_efforts(laps)
+        eff_paces  = [pace_to_sec(e.get("pace_per_km")) for e in efforts
+                      if pace_to_sec(e.get("pace_per_km"))]
+        eval_pace  = int(sum(eff_paces) / len(eff_paces)) if eff_paces else pace
+
+        if not eval_pace:            pace_score = 1.0
+        elif eval_pace <= _TRAIN_I_LO:          pace_score = 2.5  # 〜3:48 ◎ 設定より速め
+        elif eval_pace <= _TRAIN_I_HI:          pace_score = 2.5  # 〜3:54 ◎ 設定通り
+        elif eval_pace <= _TRAIN_I_HI + 8:      pace_score = 2.0  # 〜4:02 わずかに遅め
+        elif eval_pace <= _TRAIN_I_HI + 20:     pace_score = 1.5  # 〜4:14 遅め
+        else:                                    pace_score = 0.5
     elif run_type == "tempo":
         # T ペース 4:07-4:14/km (247-254秒) が理想
         if not pace: pace_score = 1.0
@@ -956,6 +966,21 @@ def lap_pace_stats(lp_list):
     var = sum((s - avg)**2 for s in secs) / len(secs)
     return avg, var**0.5
 
+def extract_interval_efforts(laps):
+    """
+    ラップデータからインターバル本番ラップを抽出。
+    条件: 距離 0.8〜1.3km かつ ペース 4:10/km（250秒）以内
+    W-up / C-down / リカバリージョグ は除外される。
+    """
+    efforts = []
+    for lap in laps:
+        dist = float(lap.get("distance_km") or 0)
+        pace = pace_to_sec(lap.get("pace_per_km"))
+        if not pace or pace <= 0: continue
+        if 0.8 <= dist <= 1.3 and pace <= 250:
+            efforts.append(lap)
+    return efforts
+
 def coaching_comment(run, laps):
     dist  = float(run.get("distance_km") or 0)
     pace  = pace_to_sec(run.get("pace_per_km"))
@@ -1023,32 +1048,78 @@ def coaching_comment(run, laps):
     elif is_interval:
         title, color = "⚡ インターバル / I-pace", "#ef4444"
         purpose = (
-            "VO₂max（最大酸素摂取量）の向上が主目的。"
-            "<strong>ダニエルズ理論</strong>では I ペース（<strong>3:43/km — VO₂Max 58 基準</strong>）で"
-            " 3〜5分間のレップを 5〜6本反復する。"
-            " <strong>Pfitzinger</strong> では VO₂max インターバル（600m〜1200m）を"
-            " 週1回のみ実施を推奨。Sub-3:00 への最重要セッション。"
+            "VO₂max向上・スピード持久力養成が主目的。"
+            "現在のプラン（VDOT 51 / 5km PB 19:37 基準）："
+            "<strong>1000m×5本（3:48〜3:54/km）・休息2分</strong>。"
+            " <strong>Pfitzinger</strong> では VO₂max インターバルを週1回のみ実施を推奨。"
+            " Sub-3:00 へのスピード基盤を作る最重要セッション。"
         )
-        lp_avg, lp_std = lap_pace_stats(laps)
-        if pace:
-            diff = pace - _I_PACE
-            pace_note = "◎ I ペース域" if abs(diff) <= 10 else ("やや速め" if diff < 0 else "やや遅め")
-            assessment = f"{dist:.1f}km、平均 {run['pace_per_km']}/km（目標 3:43 比 {'+' if diff>=0 else ''}{diff}秒）{pace_note}、HR {hr:.0f}/{maxhr:.0f}bpm。"
-        if lp_std is not None:
-            cv = lp_std / lp_avg * 100 if lp_avg else 0
-            if cv < 8:
-                assessment += f" ラップ変動 ±{lp_std:.0f}秒 — <strong>ペースが安定しています</strong>。"
+
+        # ラップデータからインターバル本番ラップを抽出
+        efforts = extract_interval_efforts(laps)
+        n_eff   = len(efforts)
+
+        if efforts:
+            eff_paces = [pace_to_sec(e.get("pace_per_km")) for e in efforts
+                         if pace_to_sec(e.get("pace_per_km"))]
+            eff_avg = int(sum(eff_paces) / len(eff_paces)) if eff_paces else None
+            eff_min = min(eff_paces) if eff_paces else None
+            eff_max = max(eff_paces) if eff_paces else None
+
+            if eff_avg:
+                # 目標 3:48〜3:54/km（228〜234秒）との比較
+                if eff_avg <= _TRAIN_I_LO:
+                    p_eval, p_col = "◎ 設定より速め", "#22c55e"
+                elif eff_avg <= _TRAIN_I_HI:
+                    p_eval, p_col = "◎ 設定ペース通り", "#22c55e"
+                elif eff_avg <= _TRAIN_I_HI + 8:
+                    p_eval, p_col = f"△ 設定 +{eff_avg - _TRAIN_I_HI}秒 — わずかに遅め", "#f59e0b"
+                else:
+                    p_eval, p_col = f"▽ 設定 +{eff_avg - _TRAIN_I_HI}秒/km — 遅め", "#ef4444"
+
+                assessment = (
+                    f"<strong>{n_eff}本 検出</strong>（目標 5本）。"
+                    f"努力ペース平均: <strong style='color:{p_col}'>{fmt_time(eff_avg)}/km — {p_eval}</strong>。"
+                    f"最速 {fmt_time(eff_min)}〜最遅 {fmt_time(eff_max)}/km。HR {hr:.0f}/{maxhr:.0f}bpm。"
+                )
+
+                # ペースのばらつき評価
+                if len(eff_paces) >= 2:
+                    std = (sum((p - eff_avg)**2 for p in eff_paces) / len(eff_paces)) ** 0.5
+                    if std < 5:
+                        assessment += " <strong>全本のペースが揃っており理想的なイーブンラン ✅</strong>。"
+                    elif std < 12:
+                        assessment += f" ペースばらつき ±{std:.0f}秒 — 許容範囲内。"
+                    else:
+                        assessment += f" ペースばらつき ±{std:.0f}秒 — 1本目を少し抑えてイーブンを意識。"
+
+            # 本数の評価
+            if n_eff < 5:
+                assessment += f" <span style='color:#f59e0b'>⚠ {n_eff}本完了（目標5本）。</span>"
+            elif n_eff == 5:
+                assessment += " <strong>5本完遂 ✅</strong>"
             else:
-                assessment += f" ラップ変動 ±{lp_std:.0f}秒 — 前半突っ込み気味の可能性。次回はイーブンペースを意識してください。"
+                assessment += f" {n_eff}本実施（目標超え）。"
+        else:
+            # ラップ未取得 or 構造化インターバル未検出 → 全体ペースで代替評価
+            if pace:
+                assessment = (
+                    f"{dist:.1f}km、全体平均 {run['pace_per_km']}/km、HR {hr:.0f}/{maxhr:.0f}bpm。"
+                    " （Garmin のラップデータが未取得のため、個別本数の評価はできません）"
+                )
+            else:
+                assessment = f"{dist:.1f}km、HR {hr:.0f}bpm。ラップデータ未取得。"
+
         if hr >= 175:
-            assessment += " 心拍が VO₂max 域に達しており、追い込めています。"
+            assessment += " 心拍が VO₂max 域に達しており追い込めています。"
         elif hr >= 168:
             assessment += " 心拍はVO₂max 域に近い。最後のレップで 175+ を狙えると理想的。"
+
         tips = [
-            "【ダニエルズ】I ペース 3:43/km を週1回・総量 8km 以内",
-            "【Pfitzinger】1km × 5-6本 r=3分 or 1200m × 4-5本",
-            "ウォームアップ 2km（4:53-5:15/km） + クールダウン 2km 必須",
-            "80/20 ルール：インターバルは週のうちの「20%強度」に相当。E 走で土台を作ってこそ効果が出る",
+            "【設定】1000m×5本（3:48〜3:54/km）・休息2分（200mジョグ or 静止）",
+            "ステップアップ順：① 3:54で5本揃える → ② 休息を1:30→1:00に短縮 → ③ 3:48に上げる",
+            "W-up 2km（5:20/km 以上）+ C-down 2km 必須。1本目は必ず抑えて入ること",
+            "週1回厳守 — 回復不足は全セッションの質を下げる",
         ]
 
     elif is_tempo:
