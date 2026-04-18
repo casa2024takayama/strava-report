@@ -174,7 +174,7 @@
   <a href="index.html" class="header-link">
     <h1>🏃 ランニングレポート</h1>
   </a>
-  <p>2026年4月 — Strava データより生成 2026-04-17</p>
+  <p>2026年4月 — Strava データより生成 2026-04-18</p>
 </div>
 
 <div class="container">
@@ -481,10 +481,10 @@
         <div class="plan-box trend-box">
           <div class="plan-label">📈 2026年4月の練習傾向</div>
           <p style="font-size:13px;line-height:1.8;color:#4a5568">テーパー週に入っており、走行量を適切に落とせています。
-            週間距離が <strong>41km</strong>→<strong>48km</strong>→<strong>5km</strong> と推移。
+            週間距離が <strong>41km</strong>→<strong>48km</strong>→<strong>23km</strong> と推移。
           </p>
         </div>
-        <div class="plan-box race-box"><div class="plan-label">🗓 次のレース</div><div class="race-name">富士登山競走 頂上コース</div><div class="race-date">7月24日</div><div class="race-days">あと <span>98</span> 日</div></div>
+        <div class="plan-box race-box"><div class="plan-label">🗓 次のレース</div><div class="race-name">富士登山競走 頂上コース</div><div class="race-date">7月24日</div><div class="race-days">あと <span>97</span> 日</div></div>
       </div>
 
       <!-- 月間200km進捗（JS インタラクティブ） -->
@@ -507,7 +507,7 @@
         <!-- テキスト行 -->
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
           <span style="font-size:13px;color:#4a5568">
-            走行実績 <strong>93.8km</strong>
+            走行実績 <strong>111.4km</strong>
             <span style="font-size:11px;color:#a0aec0;margin-left:4px">（レース含む記録済み分）</span>
           </span>
           <span style="font-size:13px;color:#a0aec0">＋</span>
@@ -521,15 +521,15 @@
         <div style="height:12px;background:#e2e8f0;border-radius:6px;position:relative;overflow:hidden">
           <div id="actual-bar"
                style="height:12px;background:#94a3b8;border-radius:6px;
-                      width:46.9%;transition:width .4s"></div>
+                      width:55.7%;transition:width .4s"></div>
           <div id="proj-bar"
                style="height:12px;background:#f59e0b;border-radius:0 6px 6px 0;
-                      position:absolute;top:0;left:46.9%;
+                      position:absolute;top:0;left:55.7%;
                       width:0%;opacity:0.55;transition:all .4s"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:#a0aec0;margin-top:5px">
           <span>0km</span>
-          <span style="color:#718096">47% 走行済み</span>
+          <span style="color:#718096">56% 走行済み</span>
           <span id="proj-pct-label" style="color:#f59e0b"></span>
           <span>200km</span>
         </div>
@@ -537,9 +537,9 @@
         <!-- JS -->
         <script>
         (function() {
-          var CURRENT = 93.8;
+          var CURRENT = 111.4;
           var GOAL    = 200;
-          var ACT_PCT = 46.9;
+          var ACT_PCT = 55.7;
 
           function updateGoalBar() {
             var add     = parseFloat(document.getElementById('race-select').value);
@@ -634,24 +634,24 @@
             10km 予定 → 5.4km（短縮） / 4:29/km<span style="font-size:11px;color:#718096;margin-left:6px">(5.4km/4:29/km)</span>
           </td>
         </tr>
-        <tr style="background:#fffbeb;">
-          <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">⬜</td>
-          <td style="width:28px;font-weight:700;color:#fc4c02;font-size:13px;padding:8px 4px">金</td>
+        <tr style="">
+          <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">✅</td>
+          <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">金</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
             休養 <span style="font-size:11px;font-weight:400;color:#a0aec0">—</span>
           </td>
-          <td style="font-size:12px;color:#a0aec0;padding:8px 8px;line-height:1.6">
-            完全休養 or 軽ジョグ（5:40/km 以上・5km 以内）
+          <td style="font-size:12px;color:#22c55e;padding:8px 8px;line-height:1.6">
+            休養完了
           </td>
         </tr>
-        <tr style="">
-          <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">⬜</td>
-          <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">土</td>
+        <tr style="background:#fffbeb;">
+          <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">🔄</td>
+          <td style="width:28px;font-weight:700;color:#fc4c02;font-size:13px;padding:8px 4px">土</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
             インターバル <span style="font-size:11px;font-weight:400;color:#a0aec0">8km</span>
           </td>
-          <td style="font-size:12px;color:#a0aec0;padding:8px 8px;line-height:1.6">
-            W-up 2km ＋ 1000m×5本（3:48〜3:54/km）休息2分 ＋ C-down 2km
+          <td style="font-size:12px;color:#3b82f6;padding:8px 8px;line-height:1.6">
+            🔄 インターバル予定 → イージー（回復優先 / 17.6km）。翌週補填を検討。<span style="font-size:11px;color:#718096;margin-left:6px">(2.5km/6:43/km + 15.1km/5:04/km)</span>
           </td>
         </tr>
         <tr style="">
@@ -666,12 +666,12 @@
         </tr></tbody>
       </table>
       <div style="height:8px;background:#e2e8f0;border-radius:4px;margin-bottom:8px;overflow:hidden">
-        <div style="height:8px;background:#3b82f6;border-radius:4px;width:11%"></div>
+        <div style="height:8px;background:#3b82f6;border-radius:4px;width:48%"></div>
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#718096">
-        <span>週実績: <strong style="color:#2d3748">5.4km</strong></span>
+        <span>週実績: <strong style="color:#2d3748">23.0km</strong></span>
         <span>週目標: <strong>48km</strong></span>
-        <span style="color:#3b82f6;font-weight:700">残り 42.6km</span>
+        <span style="color:#3b82f6;font-weight:700">残り 25.0km</span>
       </div>
     </div>
 
@@ -679,27 +679,27 @@
   <div class="cards">
     <div class="card">
       <div class="label">総距離</div>
-      <div class="value">93.8</div>
+      <div class="value">111.4</div>
       <div class="sub">km</div>
     </div>
     <div class="card">
       <div class="label">ランニング回数</div>
-      <div class="value">19</div>
+      <div class="value">21</div>
       <div class="sub">回</div>
     </div>
     <div class="card">
       <div class="label">総時間</div>
-      <div class="value">7:26</div>
+      <div class="value">8:59</div>
       <div class="sub">時間:分</div>
     </div>
     <div class="card">
       <div class="label">平均心拍</div>
-      <div class="value">155</div>
+      <div class="value">154</div>
       <div class="sub">bpm</div>
     </div>
     <div class="card">
       <div class="label">累積獲得標高</div>
-      <div class="value">368</div>
+      <div class="value">427</div>
       <div class="sub">m</div>
     </div>
   </div>
@@ -734,6 +734,28 @@
       </thead>
       <tbody>
         
+        <tr>
+          <td>2026-04-18 <small style="color:#888">(土)</small></td>
+          <td>夜のランニング</td>
+          <td style="text-align:right;font-weight:bold">2.5 km</td>
+          <td style="text-align:right">17:01</td>
+          <td style="text-align:right">6:43 /km</td>
+          <td style="text-align:right">138.3</td>
+          <td class="act-col-elev" style="text-align:right">20m</td>
+          <td><span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px">イージー走</span></td>
+        </tr>
+
+        <tr>
+          <td>2026-04-18 <small style="color:#888">(土)</small></td>
+          <td>夜のランニング</td>
+          <td style="text-align:right;font-weight:bold">15.1 km</td>
+          <td style="text-align:right">1:16:29</td>
+          <td style="text-align:right">5:04 /km</td>
+          <td style="text-align:right">149.3</td>
+          <td class="act-col-elev" style="text-align:right">39m</td>
+          <td><span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px">イージー走</span></td>
+        </tr>
+
         <tr>
           <td>2026-04-16 <small style="color:#888">(木)</small></td>
           <td>皇居ラン</td>
@@ -951,6 +973,80 @@
   <div class="section">
     <h2>🏅 練習レビュー（1.5km以上 / VO₂Max 59 基準 / ダニエルズ・Pfitzinger・Hansons・80/20）</h2>
     
+        <div class="coach-card">
+          <div class="coach-header" style="border-left:4px solid #22c55e">
+            <span class="coach-badge" style="background:#22c55e">🟢 イージー走 / E-pace</span>
+            <span class="coach-date">2026-04-18 (土) — 夜のランニング
+              <small>2.5km / 6:43/km / HR 138.3 / ⏱ 17:01</small>
+            </span>
+            <div style="margin-left:auto"><div class="score-wrap">
+      <span class="score-num" style="color:#84cc16">7.0</span>
+      <span class="score-unit">/10</span>
+      <span class="score-label" style="background:#84cc16">良好</span>
+      <div class="score-bar-bg"><div class="score-bar-fg" style="width:70%;background:#84cc16"></div></div>
+    </div></div>
+          </div>
+          <div class="coach-layout">
+            <div class="coach-body">
+              
+        <div class="score-breakdown">
+          <span title="ペース適切度">ペース 2.0</span>
+          <span title="心拍ゾーン">心拍 2.5</span>
+          <span title="ラップ一貫性">一貫性 1.0</span>
+          <span title="強度・量バランス">バランス 1.5</span>
+          <small style="color:#999">（各2.5点満点）</small>
+        </div>
+              <div class="coach-purpose"><strong>🎯 練習の目的：</strong>有酸素基礎・毛細血管の発達・筋腱の強化・回復促進が目的。<strong>ダニエルズ理論</strong>では週間走行量の 70〜80% をこの強度で行うことを推奨。 <strong>80/20 ルール（Matt Fitzgerald）</strong> では全練習の 80% を閾値以下で走ることで 長期的なパフォーマンス向上が実証されている。 E ペース目安：<strong>4:53〜5:15/km</strong>（VO₂Max 58 基準）。</div>
+              <div class="coach-assessment"><strong>📊 評価：</strong>2.5km を 6:43/km、HR 138bpm。 ゆったりとした回復走。筋肉・腱の修復を促す貴重なセッション。</div>
+              <ul class='coach-tips'><li>心拍が低く、回復走として完璧に機能しています（Maffetone MAF ゾーン）</li><li>「鼻呼吸で走れるペース」「隣の人と会話できるペース」が目安</li><li>【80/20 ルール】週の練習の 80% はこの強度に。土台なくして記録更新なし</li></ul>
+            </div>
+            <div class="run-map no-map">GPS データなし</div>
+          </div>
+        </div>
+
+        <div class="coach-card">
+          <div class="coach-header" style="border-left:4px solid #22c55e">
+            <span class="coach-badge" style="background:#22c55e">🟢 イージー走 / E-pace</span>
+            <span class="coach-date">2026-04-18 (土) — 夜のランニング
+              <small>15.1km / 5:04/km / HR 149.3 / ⏱ 1:16:29</small>
+            </span>
+            <div style="margin-left:auto"><div class="score-wrap">
+      <span class="score-num" style="color:#84cc16">7.5</span>
+      <span class="score-unit">/10</span>
+      <span class="score-label" style="background:#84cc16">良好</span>
+      <div class="score-bar-bg"><div class="score-bar-fg" style="width:75%;background:#84cc16"></div></div>
+    </div></div>
+          </div>
+          <div class="coach-layout">
+            <div class="coach-body">
+              
+        <div class="score-breakdown">
+          <span title="ペース適切度">ペース 2.5</span>
+          <span title="心拍ゾーン">心拍 2.0</span>
+          <span title="ラップ一貫性">一貫性 1.0</span>
+          <span title="強度・量バランス">バランス 2.0</span>
+          <small style="color:#999">（各2.5点満点）</small>
+        </div>
+              <div class="coach-purpose"><strong>🎯 練習の目的：</strong>有酸素基礎・毛細血管の発達・筋腱の強化・回復促進が目的。<strong>ダニエルズ理論</strong>では週間走行量の 70〜80% をこの強度で行うことを推奨。 <strong>80/20 ルール（Matt Fitzgerald）</strong> では全練習の 80% を閾値以下で走ることで 長期的なパフォーマンス向上が実証されている。 E ペース目安：<strong>4:53〜5:15/km</strong>（VO₂Max 58 基準）。</div>
+              <div class="coach-assessment"><strong>📊 評価：</strong>15.1km を 5:04/km、HR 149bpm。 <strong>◎ 理想的な E ペース域</strong>。有酸素適応と回復を両立する良質なセッション。</div>
+              <ul class='coach-tips'><li>「鼻呼吸で走れるペース」「隣の人と会話できるペース」が目安</li><li>【80/20 ルール】週の練習の 80% はこの強度に。土台なくして記録更新なし</li><li>最速ラップ 4:00/km、最遅ラップ 5:45/km</li></ul>
+            </div>
+            
+            <div id="map_18159054749" class="run-map"></div>
+            <script>
+            (function(){
+              var m = L.map('map_18159054749', {zoomControl:true, attributionControl:false});
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+              var coords = [[35.662192, 139.673791], [35.662372, 139.673935], [35.662539, 139.674089], [35.662711, 139.67425], [35.662886, 139.674415], [35.663079, 139.674565], [35.663267, 139.674675], [35.663464, 139.674793], [35.663668, 139.674941], [35.663874, 139.675047], [35.663986, 139.675229], [35.663983, 139.675521], [35.663994, 139.6758], [35.664008, 139.676074], [35.664019, 139.676373], [35.664053, 139.676662], [35.664073, 139.676951], [35.664094, 139.677244], [35.664119, 139.677543], [35.664104, 139.677836], [35.664116, 139.67815], [35.664092, 139.678449], [35.664088, 139.678753], [35.663861, 139.67886], [35.663582, 139.678868], [35.663336, 139.678888], [35.663083, 139.678889], [35.662854, 139.67889], [35.662605, 139.6789], [35.662374, 139.678917], [35.662141, 139.678947], [35.661895, 139.678952], [35.661653, 139.678956], [35.66142, 139.678965], [35.661188, 139.67897], [35.660942, 139.678973], [35.660702, 139.679007], [35.660648, 139.679277], [35.660662, 139.679577], [35.66069, 139.679874], [35.660688, 139.680176], [35.660713, 139.680455], [35.660722, 139.680758], [35.660723, 139.681033], [35.660793, 139.681289], [35.661038, 139.681321], [35.661273, 139.681366], [35.661494, 139.681434], [35.661744, 139.6815], [35.661993, 139.681554], [35.662238, 139.681609], [35.66247, 139.681666], [35.662705, 139.681737], [35.662937, 139.681803], [35.663148, 139.681868], [35.663193, 139.682222], [35.663142, 139.682516], [35.663113, 139.682815], [35.663099, 139.683105], [35.663149, 139.683391], [35.663192, 139.683719], [35.663208, 139.684017], [35.663172, 139.684339], [35.663086, 139.684617], [35.662961, 139.684876], [35.662835, 139.685134], [35.662756, 139.685404], [35.662677, 139.685718], [35.662589, 139.686003], [35.662512, 139.68629], [35.662403, 139.68656], [35.66226, 139.686837], [35.662164, 139.687084], [35.662178, 139.687376], [35.662204, 139.687618], [35.662094, 139.687834], [35.661831, 139.687919], [35.6616, 139.688112], [35.661412, 139.688296], [35.6612, 139.688472], [35.660998, 139.688678], [35.660737, 139.688768], [35.660526, 139.68891], [35.66031, 139.689093], [35.660096, 139.689273], [35.659895, 139.689418], [35.659698, 139.689573], [35.659474, 139.689697], [35.65961, 139.689997], [35.659752, 139.690231], [35.659878, 139.690433], [35.659989, 139.690651], [35.660141, 139.690903], [35.66027, 139.691149], [35.660404, 139.691387], [35.66054, 139.691639], [35.660685, 139.691861], [35.660818, 139.692112], [35.660948, 139.69239], [35.661104, 139.692641], [35.661229, 139.692904], [35.661394, 139.693138], [35.661541, 139.693402], [35.661677, 139.693643], [35.661885, 139.69378], [35.662164, 139.69384], [35.66236, 139.694048], [35.66255, 139.69424], [35.662715, 139.694462], [35.662844, 139.694598], [35.662948, 139.694748], [35.663139, 139.694982], [35.663329, 139.695233], [35.663464, 139.695485], [35.663648, 139.695648], [35.663776, 139.695895], [35.663925, 139.696123], [35.664031, 139.696335], [35.664176, 139.696541], [35.664296, 139.696764], [35.664403, 139.696926], [35.664548, 139.697046], [35.664613, 139.697318], [35.664669, 139.697603], [35.6647, 139.697889], [35.664711, 139.698137], [35.664754, 139.698468], [35.664879, 139.69872], [35.665099, 139.698668], [35.665329, 139.698536], [35.665545, 139.69839], [35.665749, 139.698251], [35.665973, 139.698133], [35.666194, 139.698011], [35.666412, 139.697906], [35.666617, 139.697776], [35.666825, 139.697663], [35.667034, 139.697552], [35.667191, 139.697331], [35.667141, 139.69705], [35.66704, 139.696768], [35.666931, 139.696504], [35.66682, 139.696226], [35.666715, 139.695967], [35.666618, 139.695707], [35.666513, 139.695427], [35.666499, 139.695135], [35.666606, 139.695173], [35.666853, 139.695212], [35.667078, 139.69514], [35.667303, 139.695006], [35.667527, 139.694869], [35.667769, 139.694844], [35.667998, 139.694935], [35.668102, 139.695187], [35.668117, 139.695494], [35.66813, 139.695806], [35.668138, 139.696126], [35.668169, 139.696424], [35.6682, 139.696726], [35.668211, 139.697042], [35.668222, 139.69732], [35.668266, 139.69752], [35.668496, 139.697551], [35.668583, 139.697824], [35.66856, 139.698131], [35.668577, 139.698449], [35.668591, 139.698758], [35.668629, 139.699069], [35.668631, 139.699366], [35.668619, 139.699693], [35.668648, 139.700003], [35.66869, 139.700305], [35.668779, 139.700539], [35.669013, 139.700512], [35.669059, 139.700223], [35.669136, 139.699946], [35.669341, 139.699775], [35.669562, 139.699615], [35.669762, 139.699435], [35.669959, 139.699258], [35.67013, 139.699036], [35.670269, 139.698797], [35.670407, 139.698556], [35.670548, 139.698307], [35.670718, 139.698098], [35.670935, 139.697928], [35.671124, 139.697709], [35.671258, 139.69745], [35.671408, 139.69718], [35.671512, 139.696918], [35.671669, 139.696663], [35.671855, 139.696461], [35.672077, 139.696316], [35.672313, 139.696213], [35.672556, 139.69613], [35.672801, 139.696072], [35.67304, 139.695953], [35.673258, 139.695776], [35.673389, 139.695527], [35.673467, 139.695228], [35.673488, 139.694925], [35.673425, 139.694635], [35.673298, 139.694353], [35.673157, 139.694087], [35.673102, 139.693782], [35.673272, 139.693569], [35.673402, 139.693347], [35.673221, 139.693109], [35.673011, 139.692914], [35.672788, 139.692754], [35.672564, 139.692612], [35.67232, 139.692519], [35.672073, 139.692448], [35.671827, 139.692401], [35.67158, 139.692413], [35.671341, 139.692487], [35.671118, 139.692652], [35.670919, 139.692826], [35.670707, 139.692979], [35.670486, 139.693097], [35.670243, 139.693174], [35.670014, 139.693328], [35.669803, 139.693507], [35.669658, 139.693748], [35.669574, 139.694048], [35.669478, 139.694341], [35.669395, 139.694636], [35.669325, 139.694918], [35.669286, 139.695218], [35.669224, 139.695518], [35.669191, 139.695814], [35.669022, 139.69603], [35.66895, 139.696315], [35.669029, 139.69663], [35.669201, 139.696852], [35.669292, 139.69715], [35.6693, 139.697461], [35.669296, 139.697772], [35.669259, 139.698056], [35.669239, 139.698386], [35.669221, 139.698694], [35.669205, 139.699004], [35.66921, 139.6993], [35.66919, 139.699606], [35.669305, 139.699783], [35.669517, 139.699633], [35.669746, 139.699457], [35.669944, 139.69925], [35.670115, 139.699028], [35.670275, 139.698774], [35.670414, 139.698529], [35.670582, 139.698267], [35.670785, 139.698062], [35.671023, 139.697851], [35.671173, 139.697603], [35.671306, 139.697331], [35.671437, 139.697073], [35.671571, 139.696802], [35.671746, 139.696571], [35.671975, 139.696361], [35.672221, 139.696242], [35.672485, 139.696153], [35.672767, 139.69606], [35.673032, 139.695955], [35.673266, 139.695778], [35.673402, 139.695492], [35.673478, 139.695177], [35.673475, 139.694858], [35.673399, 139.694541], [35.67325, 139.694251], [35.673122, 139.693955], [35.673193, 139.693666], [35.673397, 139.69346], [35.673309, 139.6932], [35.673103, 139.692991], [35.672879, 139.692799], [35.672647, 139.692661], [35.67242, 139.692552], [35.672176, 139.692467], [35.671913, 139.692419], [35.671659, 139.692405], [35.671398, 139.692445], [35.671156, 139.692597], [35.670945, 139.692789], [35.670744, 139.692972], [35.670513, 139.693098], [35.670273, 139.693186], [35.670033, 139.69332], [35.669816, 139.693496], [35.669679, 139.693753], [35.669567, 139.694039], [35.66945, 139.694337], [35.669369, 139.694642], [35.669325, 139.694949], [35.669283, 139.695256], [35.669261, 139.695579], [35.6692, 139.695852], [35.669026, 139.696096], [35.668955, 139.696405], [35.669078, 139.696669], [35.669217, 139.696918], [35.669297, 139.697215], [35.669276, 139.697545], [35.669267, 139.697851], [35.669271, 139.698167], [35.66924, 139.698498], [35.669243, 139.698837], [35.669232, 139.699177], [35.669197, 139.699503], [35.669234, 139.699809], [35.669454, 139.699688], [35.66969, 139.699513], [35.669876, 139.699344], [35.670059, 139.699119], [35.670234, 139.698877], [35.670381, 139.698612], [35.670519, 139.698353], [35.670684, 139.698108], [35.670917, 139.697944], [35.671091, 139.697743], [35.671252, 139.697463], [35.671393, 139.6972], [35.67151, 139.696926], [35.671651, 139.696687], [35.671838, 139.696476], [35.672048, 139.696307], [35.672271, 139.696185], [35.67251, 139.696134], [35.672761, 139.696072], [35.673027, 139.695974], [35.673235, 139.695805], [35.673384, 139.695554], [35.673445, 139.695278], [35.673486, 139.695001], [35.673447, 139.694704], [35.673341, 139.694418], [35.673208, 139.69416], [35.673102, 139.693865], [35.673247, 139.69363], [35.673416, 139.69342], [35.673283, 139.693164], [35.673092, 139.692973], [35.672879, 139.692803], [35.672661, 139.692657], [35.672424, 139.692524], [35.672194, 139.692468], [35.671934, 139.692415], [35.671714, 139.69241], [35.671446, 139.692432], [35.671213, 139.692562], [35.671005, 139.692733], [35.6708, 139.692895], [35.670587, 139.693039], [35.670346, 139.693135], [35.670108, 139.693249], [35.669889, 139.693426], [35.669721, 139.693653], [35.669612, 139.693928], [35.669516, 139.694207], [35.669431, 139.694495], [35.669361, 139.694776], [35.669305, 139.695057], [35.669266, 139.695359], [35.6692, 139.695676], [35.669099, 139.695924], [35.668979, 139.696178], [35.668976, 139.69651], [35.669163, 139.696721], [35.669254, 139.697042], [35.669305, 139.697357], [35.669289, 139.697684], [35.669266, 139.698006], [35.669262, 139.698366], [35.66924, 139.698722], [35.669227, 139.699099], [35.669217, 139.699462], [35.669226, 139.699808], [35.66949, 139.699654], [35.669749, 139.699458], [35.66998, 139.699236], [35.670188, 139.698964], [35.670366, 139.69864], [35.670533, 139.698329], [35.670746, 139.698058], [35.671005, 139.697865], [35.671187, 139.69759], [35.671344, 139.69727], [35.671494, 139.696969], [35.671675, 139.696695], [35.671897, 139.696436], [35.672163, 139.696268], [35.67243, 139.696163], [35.67272, 139.696082], [35.673009, 139.695969], [35.673257, 139.695764], [35.673409, 139.695464], [35.673485, 139.695089], [35.673474, 139.694728], [35.673326, 139.694384], [35.673157, 139.694057], [35.673157, 139.693719], [35.673378, 139.693489], [35.673311, 139.693175], [35.673081, 139.692945], [35.672799, 139.692744], [35.672525, 139.692594], [35.67222, 139.692493], [35.671914, 139.692415], [35.671619, 139.692399], [35.671319, 139.692491], [35.671063, 139.69268], [35.670809, 139.692899], [35.670544, 139.693072], [35.670264, 139.693168], [35.669983, 139.693329], [35.66975, 139.693554], [35.669625, 139.693878], [35.669517, 139.694225], [35.6694, 139.694569], [35.669332, 139.694917], [35.669272, 139.695259], [35.669223, 139.695608], [35.669114, 139.695913], [35.668966, 139.696194], [35.668958, 139.696549], [35.669189, 139.69683], [35.669291, 139.69724], [35.669289, 139.697693], [35.669253, 139.698121], [35.669244, 139.698589], [35.669216, 139.699029], [35.669191, 139.699452], [35.669264, 139.699811], [35.669601, 139.699586], [35.669868, 139.699352], [35.670114, 139.699051], [35.67032, 139.698695], [35.670519, 139.698329], [35.670757, 139.698018], [35.671033, 139.697807], [35.671229, 139.697511], [35.671418, 139.697164], [35.671582, 139.696842], [35.671795, 139.696542], [35.672065, 139.69634], [35.672355, 139.696212], [35.672661, 139.696108], [35.672992, 139.695973], [35.673258, 139.695757], [35.673403, 139.695418], [35.673474, 139.695047], [35.673441, 139.694665], [35.673286, 139.694309], [35.673115, 139.693974], [35.673226, 139.69364], [35.673429, 139.693367], [35.673195, 139.693046], [35.672925, 139.692813], [35.672618, 139.692637], [35.672303, 139.692521], [35.671996, 139.692432], [35.671672, 139.692403], [35.671347, 139.692474], [35.671086, 139.692664], [35.670823, 139.692886], [35.670537, 139.693062], [35.670246, 139.693173], [35.669968, 139.693342], [35.669729, 139.69359], [35.669585, 139.69393], [35.669476, 139.6943], [35.669376, 139.694661], [35.669302, 139.695031], [35.669262, 139.695401], [35.669202, 139.695763], [35.669023, 139.696021], [35.668944, 139.696383], [35.669082, 139.696688], [35.669245, 139.696999], [35.669277, 139.697373], [35.669271, 139.697766], [35.669245, 139.698138], [35.669228, 139.69855], [35.669229, 139.69896], [35.669206, 139.699346], [35.669171, 139.699735], [35.669438, 139.699711], [35.669701, 139.699502], [35.669939, 139.699268], [35.670153, 139.698993], [35.670338, 139.698694], [35.670511, 139.698373], [35.670713, 139.698098], [35.670971, 139.697875], [35.671155, 139.697635], [35.671313, 139.697318], [35.671467, 139.696994], [35.67167, 139.696715], [35.671878, 139.696481], [35.672133, 139.696301], [35.67239, 139.696171], [35.672679, 139.696081], [35.67296, 139.695984], [35.673211, 139.695816], [35.67337, 139.695549], [35.673469, 139.695237], [35.673484, 139.694905], [35.673416, 139.694586], [35.673264, 139.694293], [35.673123, 139.693952]];
+              var poly = L.polyline(coords, {color:'#22c55e',weight:3,opacity:0.85}).addTo(m);
+              m.fitBounds(poly.getBounds(), {padding:[12,12]});
+              L.circleMarker(coords[0], {radius:6,color:'#fff',fillColor:'#22c55e',fillOpacity:1,weight:2}).addTo(m);
+              L.circleMarker(coords[coords.length-1], {radius:6,color:'#fff',fillColor:'#ef4444',fillOpacity:1,weight:2}).addTo(m);
+            })();
+            </script>
+          </div>
+        </div>
+
         <div class="coach-card">
           <div class="coach-header" style="border-left:4px solid #f59e0b">
             <span class="coach-badge" style="background:#f59e0b">🔥 テンポ走 / T-pace</span>
@@ -1608,6 +1704,140 @@
   <div class="section">
     <h2>ラップ詳細</h2>
     
+        <div class="lap-card">
+          <div class="lap-title">2026-04-18 — 夜のランニング
+            <small style="color:#888;font-weight:normal">（2.5km）</small>
+          </div>
+          <table class="lap-table">
+            <thead><tr><th>Lap</th><th>距離</th><th>タイム</th><th>ペース</th><th>HR</th></tr></thead>
+            <tbody><tr>
+              <td style="text-align:center">1</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">6:28</td>
+              <td style="text-align:right">6:28</td>
+              <td style="text-align:right">140.7</td>
+            </tr><tr>
+              <td style="text-align:center">2</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">7:29</td>
+              <td style="text-align:right">7:29</td>
+              <td style="text-align:right">134.6</td>
+            </tr><tr>
+              <td style="text-align:center">3</td>
+              <td style="text-align:right">0.53 km</td>
+              <td style="text-align:right">3:04</td>
+              <td style="text-align:right">5:48</td>
+              <td style="text-align:right">142.0</td>
+            </tr></tbody>
+          </table>
+        </div>
+
+        <div class="lap-card">
+          <div class="lap-title">2026-04-18 — 夜のランニング
+            <small style="color:#888;font-weight:normal">（15.1km）</small>
+          </div>
+          <table class="lap-table">
+            <thead><tr><th>Lap</th><th>距離</th><th>タイム</th><th>ペース</th><th>HR</th></tr></thead>
+            <tbody><tr>
+              <td style="text-align:center">1</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:42</td>
+              <td style="text-align:right">5:42</td>
+              <td style="text-align:right">127.5</td>
+            </tr><tr>
+              <td style="text-align:center">2</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:29</td>
+              <td style="text-align:right">5:29</td>
+              <td style="text-align:right">135.4</td>
+            </tr><tr>
+              <td style="text-align:center">3</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:27</td>
+              <td style="text-align:right">5:27</td>
+              <td style="text-align:right">135.6</td>
+            </tr><tr>
+              <td style="text-align:center">4</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:45</td>
+              <td style="text-align:right">5:45</td>
+              <td style="text-align:right">139.3</td>
+            </tr><tr>
+              <td style="text-align:center">5</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:28</td>
+              <td style="text-align:right">5:28</td>
+              <td style="text-align:right">138.4</td>
+            </tr><tr>
+              <td style="text-align:center">6</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:19</td>
+              <td style="text-align:right">5:19</td>
+              <td style="text-align:right">141.5</td>
+            </tr><tr>
+              <td style="text-align:center">7</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:18</td>
+              <td style="text-align:right">5:18</td>
+              <td style="text-align:right">142.4</td>
+            </tr><tr>
+              <td style="text-align:center">8</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:05</td>
+              <td style="text-align:right">5:05</td>
+              <td style="text-align:right">145.2</td>
+            </tr><tr>
+              <td style="text-align:center">9</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:12</td>
+              <td style="text-align:right">5:12</td>
+              <td style="text-align:right">144.7</td>
+            </tr><tr>
+              <td style="text-align:center">10</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">5:24</td>
+              <td style="text-align:right">5:24</td>
+              <td style="text-align:right">140.7</td>
+            </tr><tr>
+              <td style="text-align:center">11</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">4:44</td>
+              <td style="text-align:right">4:44</td>
+              <td style="text-align:right">164.2</td>
+            </tr><tr>
+              <td style="text-align:center">12</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">4:28</td>
+              <td style="text-align:right">4:28</td>
+              <td style="text-align:right">179.7</td>
+            </tr><tr>
+              <td style="text-align:center">13</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">4:00</td>
+              <td style="text-align:right">4:00</td>
+              <td style="text-align:right">184.4</td>
+            </tr><tr>
+              <td style="text-align:center">14</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">4:17</td>
+              <td style="text-align:right">4:17</td>
+              <td style="text-align:right">179.0</td>
+            </tr><tr>
+              <td style="text-align:center">15</td>
+              <td style="text-align:right">1.00 km</td>
+              <td style="text-align:right">4:29</td>
+              <td style="text-align:right">4:29</td>
+              <td style="text-align:right">167.9</td>
+            </tr><tr>
+              <td style="text-align:center">16</td>
+              <td style="text-align:right">0.05 km</td>
+              <td style="text-align:right">0:13</td>
+              <td style="text-align:right">4:19</td>
+              <td style="text-align:right">162.2</td>
+            </tr></tbody>
+          </table>
+        </div>
+
         <div class="lap-card">
           <div class="lap-title">2026-04-16 — 皇居ラン
             <small style="color:#888;font-weight:normal">（5.4km）</small>
@@ -2434,7 +2664,7 @@ new Chart(document.getElementById('weekChart'), {
     labels: ["第1週", "第2週", "第3週"],
     datasets: [{
       label: '距離 (km)',
-      data: [40.9, 47.6, 5.4],
+      data: [40.9, 47.6, 23.0],
       backgroundColor: orange + 'cc',
       borderColor: orange,
       borderWidth: 1, borderRadius: 6
@@ -2453,10 +2683,10 @@ new Chart(document.getElementById('weekChart'), {
 new Chart(document.getElementById('typeChart'), {
   type: 'doughnut',
   data: {
-    labels: ["テンポ走", "イージー走", "インターバル"],
+    labels: ["イージー走", "テンポ走", "インターバル"],
     datasets: [{
-      data: [3, 12, 4],
-      backgroundColor: ["#f59e0b", "#22c55e", "#ef4444"],
+      data: [14, 3, 4],
+      backgroundColor: ["#22c55e", "#f59e0b", "#ef4444"],
       borderWidth: 2, borderColor: '#fff'
     }]
   },
@@ -2470,18 +2700,18 @@ new Chart(document.getElementById('typeChart'), {
 new Chart(document.getElementById('paceChart'), {
   type: 'line',
   data: {
-    labels: ["04-03 夜のランニン", "04-03 夜のランニン", "04-04 ランチタイム", "04-04 ランチタイム", "04-04 朝のランニン", "04-04 朝のランニン", "04-04 朝のランニン", "04-04 朝のランニン", "04-05 朝のランニン", "04-05 朝のランニン", "04-08 夜のランニン", "04-08 夕方のランニ", "04-09 夕方のランニ", "04-09 夕方のランニ", "04-12 夕方のランニ", "04-12 夕方のランニ", "04-12 夕方のランニ", "04-12 夕方のランニ", "04-16 皇居ラン"],
+    labels: ["04-03 夜のランニン", "04-03 夜のランニン", "04-04 ランチタイム", "04-04 ランチタイム", "04-04 朝のランニン", "04-04 朝のランニン", "04-04 朝のランニン", "04-04 朝のランニン", "04-05 朝のランニン", "04-05 朝のランニン", "04-08 夜のランニン", "04-08 夕方のランニ", "04-09 夕方のランニ", "04-09 夕方のランニ", "04-12 夕方のランニ", "04-12 夕方のランニ", "04-12 夕方のランニ", "04-12 夕方のランニ", "04-16 皇居ラン", "04-18 夜のランニン", "04-18 夜のランニン"],
     datasets: [
       {
         label: 'ペース (分/km)',
-        data: [5.05, 4.53, 5.82, 7.27, 4.18, 3.93, 3.62, 5.17, 5.5, 4.47, 5.45, 4.8, 5.53, 4.67, 5.57, 4.33, 4.08, 5.33, 4.48],
+        data: [5.05, 4.53, 5.82, 7.27, 4.18, 3.93, 3.62, 5.17, 5.5, 4.47, 5.45, 4.8, 5.53, 4.67, 5.57, 4.33, 4.08, 5.33, 4.48, 6.72, 5.07],
         borderColor: orange, backgroundColor: orange + '22',
         borderWidth: 2, pointRadius: 4, tension: 0.3,
         yAxisID: 'y'
       },
       {
         label: '距離 (km)',
-        data: [3.011, 10.043, 0.773, 1.137, 5.084, 3.04, 1.626, 3.161, 3.014, 10.013, 2.711, 11.048, 2.548, 15.112, 4.193, 1.037, 5.882, 5.019, 5.373],
+        data: [3.011, 10.043, 0.773, 1.137, 5.084, 3.04, 1.626, 3.161, 3.014, 10.013, 2.711, 11.048, 2.548, 15.112, 4.193, 1.037, 5.882, 5.019, 5.373, 2.528, 15.05],
         borderColor: blue, backgroundColor: blue + '22',
         borderWidth: 2, pointRadius: 3, tension: 0.3,
         yAxisID: 'y2', borderDash: [4,3]
