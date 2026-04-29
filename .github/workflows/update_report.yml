@@ -5,9 +5,9 @@ on:
   schedule:
     - cron: '0 14 * * *'   # 毎日 UTC 14:00 = JST 23:00 に自動実行
 
-concurrency:          # ← これを追加：同時実行を防ぐ
+concurrency:
   group: strava-report
-  cancel-in-progress: false
+  cancel-in-progress: false  # 実行中は待機（キャンセルしない）
 
 permissions:
   contents: write
