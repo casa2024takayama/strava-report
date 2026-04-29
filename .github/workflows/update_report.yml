@@ -84,6 +84,6 @@ jobs:
           # HTML（当月＋月別アーカイブ）と pbs.json / races.json をコミット
           git add index.html 20*.html pbs.json races.json
           git diff --staged --quiet || git commit -m "Update report $(date '+%Y-%m-%d %H:%M') JST"
-          git pull --rebase origin main
+          git pull --rebase -X theirs origin main
           git push
           echo "🌐 Deployed → https://casa2024takayama.github.io/strava-report/"
