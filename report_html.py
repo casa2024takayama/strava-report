@@ -761,31 +761,21 @@ def build_weekly_menu(runs):
     week_end = mon + timedelta(days=6)
     day_labels = ["月", "火", "水", "木", "金", "土", "日"]
 
-    # ── 週の所有月チェック ────────────────────────────────────────────────
-    # 週は「月曜が属する月」のレポートだけが表示する（重複防止）
-    week_owns = (mon.year == TARGET_YEAR and mon.month == TARGET_MONTH)
-
-    if not week_owns:
-        # この月のレポートは週を所有しない → オーナー月へ案内
-        owner_file  = f"{mon.year}{mon.month:02d}.html"
-        owner_label = f"{mon.year}年{mon.month}月"
-        next_mon    = mon + timedelta(days=7)
-        return f"""
-    <div class="plan-box" style="margin-bottom:24px">
-      <div class="plan-label">📅 今週の練習メニュー</div>
-      <div style="font-size:13px;color:#718096;line-height:1.8;padding:8px 0">
-        今週（{mon.strftime('%-m/%-d')}〜{week_end.strftime('%-m/%-d')}）は
-        月曜が {owner_label} のため、
-        <a href="{owner_file}" style="color:#fc4c02;font-weight:700">{owner_label}のレポート</a>
-        に含まれます。<br>
-        <span style="font-size:11px;color:#a0aec0">
-          次週（{next_mon.strftime('%-m/%-d')}〜）から当月レポートで表示されます。
-        </span>
-      </div>
-    </div>"""
-
-    # ── 月またぎの場合は翌月CSVも追加読み込み ────────────────────────────
+    # ── 月またぎ対応：前後月のCSVも読み込んで今週データを完成させる ──────
+    # 月またぎ週は両月のレポートに同じ内容を表示する（リダイレクト廃止）
     all_runs = list(runs)
+
+    # 週が前月にはみ出す場合（例: 月曜が先月）→ 前月CSV読み込み
+    if mon.month != TARGET_MONTH or mon.year != TARGET_YEAR:
+        pm_year  = TARGET_YEAR if TARGET_MONTH > 1 else TARGET_YEAR - 1
+        pm_month = TARGET_MONTH - 1 if TARGET_MONTH > 1 else 12
+        prev_csv = f"runs_{pm_year}{pm_month:02d}.csv"
+        if os.path.exists(prev_csv):
+            extra = [r for r in load_csv(prev_csv)
+                     if float(r.get("distance_km") or 0) >= 0.5]
+            all_runs.extend(extra)
+
+    # 週が翌月にはみ出す場合（例: 日曜が来月）→ 翌月CSV読み込み
     if week_end.month != TARGET_MONTH or week_end.year != TARGET_YEAR:
         nm_year  = TARGET_YEAR + (1 if TARGET_MONTH == 12 else 0)
         nm_month = 1 if TARGET_MONTH == 12 else TARGET_MONTH + 1
