@@ -14,10 +14,10 @@
     "source": "manual"
   },
   "5km": {
-    "time_sec": 1177,
-    "time_str": "19:37",
-    "activity_id": "17969113737",
-    "date": "2026-04-04",
+    "time_sec": 1144,
+    "time_str": "19:04",
+    "activity_id": "18807521032",
+    "date": "2026-06-06",
     "source": "best_efforts"
   },
   "10km": {
