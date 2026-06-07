@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Strava Report × Ollama コーチング — 構造レポート</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --orange: #fb923c;
+      --emerald: #34d399;
+      --indigo: #818cf8;
+      --sky: #38bdf8;
+      --rose: #fb7185;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: linear-gradient(160deg, #0b1220 0%, #1a1208 35%, #0f172a 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 20px 48px;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; }
+
+    header { text-align: center; margin-bottom: 28px; }
+    header .eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      color: var(--orange);
+      border: 1px solid #c2410c;
+      background: rgba(251, 146, 60, 0.1);
+      padding: 6px 12px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: clamp(1.5rem, 4vw, 2.1rem);
+      line-height: 1.25;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    header p { color: var(--muted); font-size: 0.95rem; }
+
+    .section-title {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 20px 0 10px;
+      text-transform: uppercase;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat .num { font-size: 1.7rem; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+    .stat .label { font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
+    .stat.orange .num { color: var(--orange); }
+    .stat.emerald .num { color: var(--emerald); }
+    .stat.indigo .num { color: var(--indigo); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+      gap: 8px;
+      align-items: stretch;
+      margin-bottom: 8px;
+    }
+    .node {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      min-height: 110px;
+    }
+    .node h3 { font-size: 0.88rem; margin-bottom: 6px; }
+    .node code { font-size: 0.72rem; color: var(--sky); word-break: break-all; }
+    .node ul { list-style: none; font-size: 0.78rem; color: var(--muted); line-height: 1.5; margin-top: 6px; }
+    .arrow { display: grid; place-items: center; color: var(--orange); font-size: 1.2rem; font-weight: 700; }
+
+    .paths { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px; }
+    .path {
+      border-radius: 16px;
+      padding: 18px;
+      border: 2px solid var(--border);
+      background: var(--card);
+    }
+    .path.recommended { border-color: var(--emerald); }
+    .path h3 { font-size: 1rem; margin-bottom: 10px; }
+    .path-claude h3 { color: var(--indigo); }
+    .path-ollama h3 { color: var(--emerald); }
+    .path ul { margin-left: 18px; font-size: 0.84rem; color: var(--muted); line-height: 1.55; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    .badge-new { background: rgba(52,211,153,0.15); color: var(--emerald); border: 1px solid rgba(52,211,153,0.35); }
+    .badge-old { background: rgba(129,140,248,0.15); color: var(--indigo); border: 1px solid rgba(129,140,248,0.35); }
+
+    .files {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      font-size: 0.84rem;
+    }
+    .files table { width: 100%; border-collapse: collapse; }
+    .files th, .files td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+    .files th { color: var(--muted); font-weight: 600; font-size: 0.75rem; }
+    .files code { color: var(--sky); font-size: 0.8rem; }
+
+    .hybrid {
+      background: linear-gradient(135deg, rgba(251,146,60,0.1), rgba(52,211,153,0.08));
+      border: 1px solid rgba(251,146,60,0.3);
+      border-radius: 16px;
+      padding: 18px 20px;
+      margin-bottom: 8px;
+    }
+    .hybrid h3 { color: var(--orange); font-size: 1rem; margin-bottom: 10px; }
+    .hybrid-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .hybrid-item {
+      background: rgba(15,23,42,0.55);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+    .hybrid-item strong { display: block; color: var(--text); margin-bottom: 4px; font-size: 0.85rem; }
+
+    .cmd {
+      background: #0b1220;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: #cbd5e1;
+      overflow-x: auto;
+    }
+    .cmd .comment { color: #64748b; }
+
+    .footer-notes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .note {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      line-height: 1.5;
+    }
+    .note strong { color: var(--rose); }
+
+    @media (max-width: 820px) {
+      .hero-grid, .paths, .hybrid-grid, .footer-notes { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); padding: 4px 0; }
+    }
+    @media print {
+      body { background: white; color: #111; }
+      .stat, .node, .path, .hybrid, .note, .files { border-color: #ccc; background: #f8fafc; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">strava-report · Architecture</div>
+      <h1>Strava Report × Ollama コーチング<br />システム構造レポート</h1>
+      <p>ダニエルズ式 AI マラソンコーチ — ローカル gemma4 版（coach_ollama.py）</p>
+    </header>
+
+    <div class="hero-grid">
+      <div class="stat orange">
+        <div class="num">CSV</div>
+        <div class="label">Strava から取得<br /><code>runs_YYYYMM.csv</code></div>
+      </div>
+      <div class="stat emerald">
+        <div class="num">1〜3分</div>
+        <div class="label">Ollama コーチング<br />gemma4:12b（ローカル）</div>
+      </div>
+      <div class="stat indigo">
+        <div class="num">MD</div>
+        <div class="label">出力レポート<br /><code>coaching_report_YYYYMM.md</code></div>
+      </div>
+    </div>
+
+    <div class="section-title">データフロー（全体像）</div>
+    <div class="flow">
+      <div class="node">
+        <h3>🏃 Strava</h3>
+        <ul>
+          <li>ランニング API</li>
+          <li>OAuth 認証</li>
+        </ul>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <h3>📥 取得</h3>
+        <code>strava_fetch.py</code>
+        <ul>
+          <li>キャッシュ付き</li>
+          <li>当月自動検出</li>
+        </ul>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <h3>📊 CSV</h3>
+        <code>runs_YYYYMM.csv</code>
+        <code>runs_YYYYMM_laps.csv</code>
+        <ul>
+          <li>距離・ペース・HR</li>
+        </ul>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <h3>🤖 コーチ</h3>
+        <code>coach_ollama.py</code>
+        <ul>
+          <li>Ollama API</li>
+          <li>ダニエルズ式</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section-title">2つのコーチング方式</div>
+    <div class="paths">
+      <div class="path path-claude">
+        <span class="badge badge-old">既存</span>
+        <h3>coach.py — Claude API</h3>
+        <ul>
+          <li>Anthropic Claude Opus</li>
+          <li>ストリーミング + thinking</li>
+          <li>高速・高精度</li>
+          <li>API キー必要・クラウド送信</li>
+          <li>3月固定 CSV（レガシー）</li>
+        </ul>
+      </div>
+      <div class="path path-ollama recommended">
+        <span class="badge badge-new">新規 PR #1</span>
+        <h3>coach_ollama.py — Ollama ローカル</h3>
+        <ul>
+          <li>既定 <code>gemma4:12b</code></li>
+          <li>標準ライブラリのみ（urllib）</li>
+          <li>完全ローカル・API 課金なし</li>
+          <li><code>--month YYYY-MM</code> 任意月</li>
+          <li>夜間バッチ向き（1〜3分/回）</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section-title">ファイル構成</div>
+    <div class="files">
+      <table>
+        <thead>
+          <tr><th>ファイル</th><th>役割</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>strava_fetch.py</code></td><td>Strava → CSV 取得（<code>TARGET_YEAR_MONTH</code> 対応）</td></tr>
+          <tr><td><code>report_html.py</code></td><td>HTML 月次レポート生成（GitHub Pages）</td></tr>
+          <tr><td><code>update_report.sh</code></td><td>取得 → HTML → デプロイ一括</td></tr>
+          <tr><td><code>coach.py</code></td><td>Claude 版コーチング</td></tr>
+          <tr><td><code>coach_ollama.py</code></td><td>Ollama 版コーチング（今回追加）</td></tr>
+          <tr><td><code>coaching_report_YYYYMM.md</code></td><td>コーチング出力（Markdown）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title">coach_ollama.py 内部処理</div>
+    <div class="hybrid">
+      <h3>処理ステップ</h3>
+      <div class="hybrid-grid">
+        <div class="hybrid-item">
+          <strong>1. CSV 読込</strong>
+          走行・ラップデータを Markdown 表に変換。週別距離集計。
+        </div>
+        <div class="hybrid-item">
+          <strong>2. プロンプト構築</strong>
+          ダニエルズ VDOT / 5ゾーン / 80-20 ルールを system prompt に埋込。
+        </div>
+        <div class="hybrid-item">
+          <strong>3. Ollama API</strong>
+          <code>POST /api/chat</code> ストリーミング。月間総評・週別・翌月提案。
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">実行コマンド</div>
+    <div class="cmd">
+<span class="comment"># データ取得</span>
+python3 strava_fetch.py
+
+<span class="comment"># Ollama.app 起動後</span>
+python3 coach_ollama.py
+python3 coach_ollama.py --month 2026-06
+
+<span class="comment"># 環境変数（任意）</span>
+OLLAMA_HOST=http://127.0.0.1:11434 OLLAMA_MODEL=gemma4:12b python3 coach_ollama.py
+    </div>
+
+    <div class="section-title">推奨運用（夜間バッチ）</div>
+    <div class="hybrid">
+      <h3>名刺アプリと同じパターン</h3>
+      <div class="hybrid-grid">
+        <div class="hybrid-item">
+          <strong>日常</strong>
+          <code>update_report.sh</code> で HTML レポート更新（GitHub Pages）
+        </div>
+        <div class="hybrid-item">
+          <strong>月1回</strong>
+          cron で <code>coach_ollama.py --month</code> → MD レポート生成
+        </div>
+        <div class="hybrid-item">
+          <strong>インフラ</strong>
+          自宅 Mac mini M2 + Ollama.app（ollama-app 0.30.6）
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">技術メモ</div>
+    <div class="footer-notes">
+      <div class="note">
+        <strong>vision 不要</strong><br />
+        ランニングコーチは CSV テキストのみ。名刺/レシートより実装が軽い。gemma4 の thinking で 1〜3 分。
+      </div>
+      <div class="note">
+        <strong>依存関係</strong><br />
+        coach_ollama.py は標準ライブラリのみ。anthropic パッケージ不要。Ollama 起動が前提。
+      </div>
+    </div>
+
+    <p style="text-align:center; margin-top:24px; font-size:0.78rem; color:var(--muted);">
+      PR: github.com/casa2024takayama/strava-report/pull/1 · 生成: 2026-06-07
+    </p>
+  </div>
+</body>
+</html>
