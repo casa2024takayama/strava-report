@@ -3,6 +3,8 @@
 AI マラソンコーチ — ダニエルズのランニングフォーミュラ準拠
 runs_march2026.csv と runs_march2026_laps.csv を読み込み、
 Claude Opus 4.6 が練習内容をレビューしてコメントを返します
+
+ローカル Ollama 版: coach_ollama.py（gemma4:12b 等）
 """
 
 import csv
