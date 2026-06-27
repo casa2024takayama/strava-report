@@ -1,6 +1,6 @@
 {
-  "at": "2026-06-28T00:46:38",
-  "data_hash": "321b3135602a48c84fe604e6e2803106a97617d6704894daa57e7d008036ae3d",
+  "at": "2026-06-28T01:42:24",
+  "data_hash": "988557f32bd60fe8bb62ea1a45ba9bd6c1c1b6b63b2d65cd43f274b45b707fee",
   "model": "claude-sonnet-4-6",
   "thinking": "disabled",
   "report": "coaching_report_202606.md",
