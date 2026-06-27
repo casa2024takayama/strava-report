@@ -78,6 +78,16 @@ jobs:
       - name: Fetch Strava data
         run: python3 strava_fetch.py
 
+      - name: AI coaching (Claude)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "⚠️ ANTHROPIC_API_KEY not set — skipping coach"
+          else
+            python3 coach_claude.py
+          fi
+
       - name: Generate HTML report
         run: python3 report_html.py
 
@@ -85,8 +95,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # HTML（当月＋月別アーカイブ）と pbs.json / races.json をコミット
-          git add index.html 20*.html pbs.json races.json
+          # HTML（当月＋月別アーカイブ）、コーチング MD、pbs.json / races.json をコミット
+          git add index.html 20*.html coaching_report_*.md pbs.json races.json
           git diff --staged --quiet || git commit -m "Update report $(date '+%Y-%m-%d %H:%M') JST"
           git pull --rebase -X theirs origin main
           git push

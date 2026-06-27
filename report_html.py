@@ -4,10 +4,15 @@ Strava HTML レポート生成（現在月を自動検出）
 環境変数 TARGET_YEAR_MONTH=YYYY-MM で月を指定可能（省略時は当月）
 """
 
+from __future__ import annotations
+
 import csv, json, os, glob, re
+import html as html_module
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import calendar as _cal_mod
+
+from coach_common import parse_coach_meta_from_md
 
 # ── 対象月の決定 ────────────────────────────────────────────────────────────
 _ym_env = os.environ.get("TARGET_YEAR_MONTH", "")
@@ -30,6 +35,68 @@ LAPS_CSV      = f"runs_{YYYYMM}_laps.csv"
 STREAMS_CSV   = f"gps_streams_{YYYYMM}.csv"
 ARCHIVE_FILE  = f"{YYYYMM}.html"   # 月別アーカイブ（永続）
 OUTPUT        = "index.html"        # 常に当月を index.html にも書く
+LAST_FETCH_FILE = os.path.join(".strava_cache", "last_fetch.json")
+LAST_COACH_FILE = os.path.join(".strava_cache", "last_coach.json")
+COACH_MD = f"coaching_report_{YYYYMM}.md"
+GITHUB_REPO = "casa2024takayama/strava-report"
+GITHUB_WORKFLOW_URL = f"https://github.com/{GITHUB_REPO}/actions/workflows/update_report.yml"
+
+
+def format_last_fetch_label() -> str | None:
+    if not os.path.exists(LAST_FETCH_FILE):
+        return None
+    try:
+        with open(LAST_FETCH_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("label"):
+            return data["label"]
+        return datetime.fromisoformat(data["at"]).strftime("%Y-%m-%d %H:%M:%S")
+    except (OSError, json.JSONDecodeError, KeyError, ValueError):
+        return None
+
+
+def format_last_coach_meta() -> dict | None:
+    if os.path.exists(LAST_COACH_FILE):
+        try:
+            with open(LAST_COACH_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            label = data.get("label")
+            if not label and data.get("at"):
+                label = datetime.fromisoformat(data["at"]).strftime("%Y-%m-%d %H:%M:%S")
+            if label:
+                return {
+                    "label": label,
+                    "model": data.get("model", "Gemini"),
+                }
+        except (OSError, json.JSONDecodeError, KeyError, ValueError):
+            pass
+    return parse_coach_meta_from_md(COACH_MD)
+
+
+last_fetch_label = format_last_fetch_label()
+if last_fetch_label:
+    last_fetch_banner = (
+        f'<p class="last-fetch ok" id="last-fetch-msg">'
+        f'✓ 最終データ取得: {last_fetch_label}</p>'
+    )
+else:
+    last_fetch_banner = (
+        '<p class="last-fetch none" id="last-fetch-msg">'
+        'データ未取得 — 「データ更新」で Strava から取得</p>'
+    )
+
+last_coach_meta = format_last_coach_meta()
+if last_coach_meta:
+    last_coach_banner = (
+        f'<p class="last-coach ok" id="last-coach-msg">'
+        f'✓ 最終 AI 評価: {last_coach_meta["label"]}'
+        f'（{html_module.escape(last_coach_meta["model"])}）</p>'
+    )
+else:
+    last_coach_banner = (
+        '<p class="last-coach none" id="last-coach-msg">'
+        'AI 評価未実行 — GitHub Actions で毎日自動生成、またはローカルで coach_claude.py を実行</p>'
+    )
 
 # ── 月別ナビゲーション ─────────────────────────────────────────────────────
 def _available_months():
@@ -1471,6 +1538,99 @@ def lap_sections():
         </div>""")
     return "\n".join(sections)
 
+# ── AI 月次コーチング（coach_claude.py 等の出力） ───────────────────────────
+def _inline_md(text: str) -> str:
+    escaped = html_module.escape(text)
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+
+
+def md_to_html(md: str) -> str:
+    lines = md.splitlines()
+    out: list[str] = []
+    in_ul = False
+    for raw in lines:
+        line = raw.rstrip()
+        s = line.strip()
+        if not s:
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            continue
+        if s.startswith("### "):
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            out.append(f"<h4>{_inline_md(s[4:])}</h4>")
+        elif s.startswith("## "):
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            out.append(f"<h3>{_inline_md(s[3:])}</h3>")
+        elif s.startswith("# "):
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            out.append(f"<h3>{_inline_md(s[2:])}</h3>")
+        elif s.startswith("- ") or s.startswith("* "):
+            if not in_ul:
+                out.append("<ul>")
+                in_ul = True
+            out.append(f"<li>{_inline_md(s[2:])}</li>")
+        elif s == "---":
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            out.append("<hr>")
+        else:
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            out.append(f"<p>{_inline_md(s)}</p>")
+    if in_ul:
+        out.append("</ul>")
+    return "\n".join(out)
+
+
+def load_ai_coaching_body() -> str | None:
+    if not os.path.exists(COACH_MD):
+        return None
+    with open(COACH_MD, encoding="utf-8") as f:
+        content = f.read()
+    marker = "## コーチングレビュー"
+    if marker in content:
+        body = content.split(marker, 1)[1].strip()
+    else:
+        body = content.strip()
+    if not body:
+        return None
+    return md_to_html(body)
+
+
+def _ai_coaching_title() -> str:
+    meta = format_last_coach_meta()
+    if meta and meta.get("model"):
+        return f'🤖 AI 月次コーチング（{html_module.escape(meta["model"])}）'
+    return "🤖 AI 月次コーチング（Claude）"
+
+
+def build_ai_coaching_section() -> str:
+    title = _ai_coaching_title()
+    body = load_ai_coaching_body()
+    if body:
+        return (
+            '\n  <div class="section ai-coach-section" id="ai-coaching">\n'
+            f'    <h2>{title}</h2>\n'
+            '    <div class="ai-coach-body">' + body + '</div>\n'
+            '  </div>'
+        )
+    return (
+        '\n  <div class="section ai-coach-section ai-coach-empty" id="ai-coaching">\n'
+        f'    <h2>{title}</h2>\n'
+        '    <p class="ai-coach-placeholder">'
+        '月間総評・翌月提案は GitHub Actions の毎日更新後、または coach_claude.py 実行後にここに表示されます。</p>\n'
+        '  </div>'
+    )
+
 # ── HTML 生成 ──────────────────────────────────────────────────────────────
 hh, rem = divmod(total_sec, 3600); mm = rem // 60
 
@@ -1489,8 +1649,52 @@ html = f"""<!DOCTYPE html>
           background: #f0f4f8; color: #1a202c; line-height: 1.6 }}
   .header {{ background: linear-gradient(135deg, #fc4c02 0%, #e63800 100%);
              color: white; padding: 32px 40px }}
+  .header-top {{ display: flex; align-items: flex-start; justify-content: space-between;
+                 gap: 16px; flex-wrap: wrap }}
   .header h1 {{ font-size: 28px; font-weight: 700 }}
   .header p  {{ opacity: 0.85; margin-top: 4px }}
+  .header-actions {{ display: flex; flex-direction: row; align-items: center; gap: 8px;
+                     flex-wrap: wrap; justify-content: flex-end }}
+  .btn-update {{ background: #fff; color: #e63800; border: none; border-radius: 999px;
+                 padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+                 box-shadow: 0 2px 8px rgba(0,0,0,.15); white-space: nowrap;
+                 transition: transform .15s, opacity .15s }}
+  .btn-update:hover:not(:disabled) {{ transform: translateY(-1px) }}
+  .btn-update:disabled {{ opacity: .65; cursor: wait }}
+  .btn-coach {{ background: #eef2ff; color: #4338ca; border: none; border-radius: 999px;
+                padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+                box-shadow: 0 2px 8px rgba(0,0,0,.12); white-space: nowrap;
+                transition: transform .15s, opacity .15s }}
+  .btn-coach:hover:not(:disabled) {{ transform: translateY(-1px) }}
+  .btn-coach:disabled {{ opacity: .65; cursor: wait }}
+  .btn-sync-link {{ display: inline-flex; align-items: center; text-decoration: none;
+                    background: #fff; color: #e63800; border-radius: 999px;
+                    padding: 10px 18px; font-size: 13px; font-weight: 700;
+                    box-shadow: 0 2px 8px rgba(0,0,0,.15); white-space: nowrap;
+                    transition: transform .15s }}
+  .btn-sync-link:hover {{ transform: translateY(-1px) }}
+  #github-sync-panel {{ display: none }}
+  .update-hint {{ font-size: 11px; opacity: .85; text-align: right; max-width: 220px;
+                  line-height: 1.45 }}
+  .update-status {{ margin-top: 14px; background: rgba(0,0,0,.18); border-radius: 10px;
+                    padding: 10px 14px; font-size: 12px; line-height: 1.5; display: none }}
+  .update-status.visible {{ display: block }}
+  .update-status.error {{ background: rgba(127,29,29,.35) }}
+  .update-status.success {{ background: rgba(6,78,59,.45) }}
+  .update-log {{ margin-top: 6px; max-height: 120px; overflow: auto; font-family: ui-monospace, monospace;
+                 font-size: 11px; opacity: .9; white-space: pre-wrap }}
+  .last-fetch {{ margin-top: 6px; font-size: 13px }}
+  .last-fetch.ok {{ font-weight: 600; opacity: 1 }}
+  .last-fetch.none {{ opacity: .8; font-size: 12px }}
+  .last-coach {{ margin-top: 4px; font-size: 13px }}
+  .last-coach.ok {{ font-weight: 600; opacity: 1 }}
+  .last-coach.none {{ opacity: .8; font-size: 12px }}
+  .ai-coach-section {{ border: 2px solid #c7d2fe; background: linear-gradient(180deg, #fff 0%, #f8fafc 100%) }}
+  .ai-coach-body {{ font-size: 14px; line-height: 1.75; color: #334155; margin-top: 12px }}
+  .ai-coach-body h3, .ai-coach-body h4 {{ margin: 18px 0 8px; color: #1e293b; font-size: 15px }}
+  .ai-coach-body ul {{ margin: 8px 0 8px 20px }}
+  .ai-coach-body hr {{ border: none; border-top: 1px solid #e2e8f0; margin: 16px 0 }}
+  .ai-coach-placeholder {{ color: #64748b; font-size: 13px; margin-top: 8px }}
   .container {{ max-width: 1100px; margin: 0 auto; padding: 32px 20px }}
   .cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
              gap: 16px; margin-bottom: 32px }}
@@ -1642,13 +1846,36 @@ html = f"""<!DOCTYPE html>
 {build_month_nav()}
 
 <div class="header">
-  <a href="index.html" class="header-link">
-    <h1>🏃 ランニングレポート</h1>
-  </a>
-  <p>{MONTH_LABEL} — Strava データより生成 {date.today()}</p>
+  <div class="header-top">
+    <div>
+      <a href="index.html" class="header-link">
+        <h1>🏃 ランニングレポート</h1>
+      </a>
+      <p>{MONTH_LABEL} — Strava ランニングレポート</p>
+      {last_fetch_banner}
+      {last_coach_banner}
+    </div>
+    <div class="header-actions" id="update-panel">
+      <button type="button" class="btn-update" id="btn-update">🔄 データ更新</button>
+      <button type="button" class="btn-coach" id="btn-coach">🤖 AI 評価</button>
+      <span class="update-hint" id="update-hint"></span>
+    </div>
+    <div class="header-actions" id="github-sync-panel">
+      <a class="btn-sync-link" id="btn-github-sync" href="{GITHUB_WORKFLOW_URL}" target="_blank" rel="noopener">
+        🔄 Strava同期
+      </a>
+      <span class="update-hint">Actions で Run workflow → 1〜2分後に再読み込み</span>
+    </div>
+  </div>
+  <div class="update-status" id="update-status">
+    <strong id="update-status-text"></strong>
+    <div class="update-log" id="update-log"></div>
+  </div>
 </div>
 
 <div class="container">
+
+  {build_ai_coaching_section()}
 
   {build_pb_ladder(load_pbs())}
 
@@ -1821,6 +2048,154 @@ new Chart(document.getElementById('paceChart'), {{
     }}
   }}
 }});
+</script>
+<script>
+(function () {{
+  const panel = document.getElementById('update-panel');
+  const btnUpdate = document.getElementById('btn-update');
+  const btnCoach = document.getElementById('btn-coach');
+  const hint = document.getElementById('update-hint');
+  const statusBox = document.getElementById('update-status');
+  const statusText = document.getElementById('update-status-text');
+  const logEl = document.getElementById('update-log');
+  const host = location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const isGithubPages = host.endsWith('.github.io');
+  const githubPanel = document.getElementById('github-sync-panel');
+  let pollTimer = null;
+  let activeKind = null;
+
+  if (sessionStorage.getItem('scrollTo') === 'ai-coaching') {{
+    sessionStorage.removeItem('scrollTo');
+    const el = document.getElementById('ai-coaching');
+    if (el) el.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+  }}
+
+  if (isGithubPages && githubPanel && panel) {{
+    panel.style.display = 'none';
+    githubPanel.style.display = 'flex';
+  }}
+
+  if (!panel || !btnUpdate || !btnCoach) return;
+
+  if (!isLocal) {{
+    return;
+  }}
+
+  if (location.protocol === 'file:') {{
+    hint.textContent = 'file:// では不可 → python3 serve_report.py --open';
+  }}
+
+  function setButtonsDisabled(disabled) {{
+    btnUpdate.disabled = disabled;
+    btnCoach.disabled = disabled;
+  }}
+
+  function setStatus(msg, isError, isSuccess) {{
+    statusBox.classList.add('visible');
+    statusBox.classList.toggle('error', !!isError);
+    statusBox.classList.toggle('success', !!isSuccess);
+    statusText.textContent = msg;
+  }}
+
+  function stopPoll() {{
+    if (pollTimer) {{ clearInterval(pollTimer); pollTimer = null; }}
+  }}
+
+  function stepLabel(data) {{
+    const labels = {{
+      starting: '準備中…',
+      fetch: 'Strava から取得中…',
+      coach: 'Claude が評価中…',
+      html: 'HTML 再生成中…',
+      done: '完了',
+      error: 'エラー',
+    }};
+    return labels[data.step] || data.step;
+  }}
+
+  async function pollStatus() {{
+    try {{
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      const kind = data.kind || activeKind;
+      const isSuccess = data.done && !data.running && !data.error;
+      if (!isSuccess) {{
+        setStatus(stepLabel(data), !!data.error, false);
+      }}
+      logEl.textContent = (data.log || []).slice(-12).join('\\n');
+      if (data.error) {{
+        setButtonsDisabled(false);
+        stopPoll();
+        return;
+      }}
+      if (data.done && !data.running) {{
+        stopPoll();
+        if (kind === 'coach') {{
+          const ts = data.last_coach || '';
+          setStatus(ts ? `✓ AI コーチング完了 — ${{ts}}` : '✓ AI コーチング完了', false, true);
+          const lastCoachEl = document.getElementById('last-coach-msg');
+          if (lastCoachEl && ts) {{
+            lastCoachEl.className = 'last-coach ok';
+            lastCoachEl.textContent = `✓ 最終 AI 評価: ${{ts}}`;
+          }}
+          sessionStorage.setItem('scrollTo', 'ai-coaching');
+        }} else {{
+          const ts = data.last_fetch || '';
+          setStatus(ts ? `✓ データ取得完了 — ${{ts}}` : '✓ データ取得完了', false, true);
+          const lastFetchEl = document.getElementById('last-fetch-msg');
+          if (lastFetchEl && ts) {{
+            lastFetchEl.className = 'last-fetch ok';
+            lastFetchEl.textContent = `✓ 最終データ取得: ${{ts}}`;
+          }}
+        }}
+        setTimeout(() => location.reload(), 2500);
+      }}
+    }} catch (e) {{
+      setStatus('サーバーに接続できません', true, false);
+      setButtonsDisabled(false);
+      stopPoll();
+    }}
+  }}
+
+  function warnFileProtocol() {{
+    alert('file:// では実行できません。\\n\\nターミナルで:\\n  cd ~/Projects/strava-report\\n  python3 serve_report.py --open\\n\\nを実行し、http://127.0.0.1:8766/index.html を開いてください。');
+  }}
+
+  async function startJob(endpoint, kind, startMsg) {{
+    if (location.protocol === 'file:') {{
+      warnFileProtocol();
+      return;
+    }}
+    activeKind = kind;
+    setButtonsDisabled(true);
+    setStatus(startMsg, false, false);
+    logEl.textContent = '';
+    try {{
+      const res = await fetch(endpoint, {{ method: 'POST' }});
+      const data = await res.json();
+      if (!data.started) {{
+        setStatus('すでに処理が実行中です', false, false);
+        setButtonsDisabled(false);
+        return;
+      }}
+      stopPoll();
+      pollTimer = setInterval(pollStatus, 1500);
+      pollStatus();
+    }} catch (e) {{
+      setStatus('API に接続できません。serve_report.py が起動しているか確認してください。', true, false);
+      setButtonsDisabled(false);
+    }}
+  }}
+
+  btnUpdate.addEventListener('click', () => {{
+    startJob('/api/update', 'fetch', 'データ更新を開始しています…');
+  }});
+
+  btnCoach.addEventListener('click', () => {{
+    startJob('/api/coach', 'coach', 'AI 評価を開始しています…（Claude API）');
+  }});
+}})();
 </script>
 </body>
 </html>
