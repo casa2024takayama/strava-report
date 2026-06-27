@@ -12,7 +12,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 import calendar as _cal_mod
 
-from coach_common import parse_coach_meta_from_md
+from coach_common import coaching_stale_detail, parse_coach_meta_from_md
 
 # ── 対象月の決定 ────────────────────────────────────────────────────────────
 _ym_env = os.environ.get("TARGET_YEAR_MONTH", "")
@@ -40,6 +40,21 @@ LAST_COACH_FILE = os.path.join(".strava_cache", "last_coach.json")
 COACH_MD = f"coaching_report_{YYYYMM}.md"
 GITHUB_REPO = "casa2024takayama/strava-report"
 GITHUB_WORKFLOW_URL = f"https://github.com/{GITHUB_REPO}/actions/workflows/update_report.yml"
+GITHUB_PAGES_URL = "https://casa2024takayama.github.io/strava-report/"
+LOCAL_REPORT_URL = "http://127.0.0.1:8766/index.html"
+
+
+def detect_report_edition() -> str:
+    """HTML 生成時の版（online=GitHub Pages / local=この Mac）。"""
+    env = os.environ.get("REPORT_EDITION", "").strip().lower()
+    if env in ("online", "local"):
+        return env
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return "online"
+    return "local"
+
+
+REPORT_EDITION = detect_report_edition()
 
 
 def format_last_fetch_label() -> str | None:
@@ -86,17 +101,30 @@ else:
     )
 
 last_coach_meta = format_last_coach_meta()
+coach_stale = coaching_stale_detail(YYYYMM, RUNS_CSV, LAPS_CSV)
 if last_coach_meta:
+    coach_class = "last-coach stale" if coach_stale else "last-coach ok"
     last_coach_banner = (
-        f'<p class="last-coach ok" id="last-coach-msg">'
+        f'<p class="{coach_class}" id="last-coach-msg">'
         f'✓ 最終 AI 評価: {last_coach_meta["label"]}'
         f'（{html_module.escape(last_coach_meta["model"])}）</p>'
     )
+    if coach_stale:
+        last_coach_banner += (
+            f'<p class="last-coach-warn" id="last-coach-warn">'
+            f'⚠️ {html_module.escape(coach_stale["message"])} — '
+            f'「AI 評価」または「データ更新」で再生成してください</p>'
+        )
 else:
     last_coach_banner = (
         '<p class="last-coach none" id="last-coach-msg">'
-        'AI 評価未実行 — GitHub Actions で毎日自動生成、またはローカルで coach_claude.py を実行</p>'
+        'AI 評価未実行 — 「AI 評価」ボタンまたは coach_claude.py で生成</p>'
     )
+    if coach_stale:
+        last_coach_banner += (
+            f'<p class="last-coach-warn" id="last-coach-warn">'
+            f'⚠️ {html_module.escape(coach_stale["message"])}</p>'
+        )
 
 # ── 月別ナビゲーション ─────────────────────────────────────────────────────
 def _available_months():
@@ -190,7 +218,12 @@ if not any(abs(_dist - 42.195) < 0.5 for _, _, _dist in _month_next):
 if not any(abs(_dist - 21.0975) < 0.5 for _, _, _dist in _month_next):
     _race_select_opts += '<option value="21.1">ハーフマラソン ＋21.1km</option>\n              '
 _race_select_opts += '<option value="0">レースなし（走行距離のみ）</option>'
-_VO2MAX       = 59    # Garmin 計測 VO2Max（HTML上でスライダー変更可能）
+try:
+    import garmin as _garmin
+    _VO2MAX   = int(round(_garmin.latest_vo2max() or 59))  # Garmin 実測 VO2Max を自動反映
+except Exception:
+    _VO2MAX   = 59
+# Garmin 計測 VO2Max（実測があれば上で反映。HTML上でスライダー変更可能）
 _GOAL_1_SEC   = 3*3600 + 10*60   # Sub 3:10
 _GOAL_ULT_SEC = 3*3600            # Sub 3:00
 # VDOT 59 ダニエルズ基準ペース（秒/km）※スライダーで動的変更
@@ -1640,6 +1673,7 @@ html = f"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>🏃 Strava {MONTH_LABEL} ランニングレポート</title>
+<meta name="report-edition" content="{REPORT_EDITION}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1649,6 +1683,14 @@ html = f"""<!DOCTYPE html>
           background: #f0f4f8; color: #1a202c; line-height: 1.6 }}
   .header {{ background: linear-gradient(135deg, #fc4c02 0%, #e63800 100%);
              color: white; padding: 32px 40px }}
+  .header.header-online {{ background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%) }}
+  .header.header-local {{ background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) }}
+  .edition-banner {{ padding: 10px 20px; font-size: 13px; line-height: 1.5;
+                    border-bottom: 1px solid rgba(0,0,0,.08) }}
+  .edition-banner a {{ color: inherit; font-weight: 700 }}
+  .edition-banner.edition-online {{ background: #dbeafe; color: #1e3a8a }}
+  .edition-banner.edition-local {{ background: #ffedd5; color: #9a3412 }}
+  .edition-banner.edition-other {{ background: #fef3c7; color: #92400e }}
   .header-top {{ display: flex; align-items: flex-start; justify-content: space-between;
                  gap: 16px; flex-wrap: wrap }}
   .header h1 {{ font-size: 28px; font-weight: 700 }}
@@ -1688,7 +1730,9 @@ html = f"""<!DOCTYPE html>
   .last-fetch.none {{ opacity: .8; font-size: 12px }}
   .last-coach {{ margin-top: 4px; font-size: 13px }}
   .last-coach.ok {{ font-weight: 600; opacity: 1 }}
+  .last-coach.stale {{ font-weight: 600; opacity: 1; color: #fef3c7 }}
   .last-coach.none {{ opacity: .8; font-size: 12px }}
+  .last-coach-warn {{ margin-top: 4px; font-size: 12px; color: #fef08a; font-weight: 600 }}
   .ai-coach-section {{ border: 2px solid #c7d2fe; background: linear-gradient(180deg, #fff 0%, #f8fafc 100%) }}
   .ai-coach-body {{ font-size: 14px; line-height: 1.75; color: #334155; margin-top: 12px }}
   .ai-coach-body h3, .ai-coach-body h4 {{ margin: 18px 0 8px; color: #1e293b; font-size: 15px }}
@@ -1842,6 +1886,47 @@ html = f"""<!DOCTYPE html>
 </style>
 </head>
 <body>
+
+<div id="edition-banner" class="edition-banner" role="status" aria-live="polite"></div>
+<script>
+(function () {{
+  const host = location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const isOnline = host.endsWith('.github.io');
+  const edition = isLocal ? 'local' : (isOnline ? 'online' : 'other');
+  const banner = document.getElementById('edition-banner');
+  const header = document.querySelector('.header');
+  const onlineUrl = {json.dumps(GITHUB_PAGES_URL)};
+  const localUrl = {json.dumps(LOCAL_REPORT_URL)};
+  const baseTitle = document.title.replace(/ \\[(ローカル|オンライン)\\]/g, '');
+
+  if (!banner) return;
+
+  if (edition === 'local') {{
+    banner.className = 'edition-banner edition-local';
+    banner.innerHTML =
+      '💻 <strong>ローカル版</strong>（この Mac · serve_report）'
+      + ' — 右上のボタンで更新 · 自動更新なし'
+      + ' · <a href="' + onlineUrl + '" target="_blank" rel="noopener">オンライン版を開く</a>';
+    if (header) header.classList.add('header-local');
+    document.title = baseTitle + ' [ローカル]';
+  }} else if (edition === 'online') {{
+    banner.className = 'edition-banner edition-online';
+    banner.innerHTML =
+      '🌐 <strong>オンライン版</strong>（GitHub Pages）'
+      + ' — 毎日 23:00 JST 自動更新 · Strava同期ボタン'
+      + ' · <a href="' + localUrl + '">ローカル版</a>';
+    if (header) header.classList.add('header-online');
+    document.title = baseTitle + ' [オンライン]';
+  }} else {{
+    banner.className = 'edition-banner edition-other';
+    banner.innerHTML =
+      '⚠️ file:// では更新できません — ターミナルで <code>python3 serve_report.py --open</code> を実行し '
+      + '<a href="' + localUrl + '">' + localUrl + '</a> をブックマークしてください';
+    document.title = baseTitle + ' [ローカル推奨]';
+  }}
+}})();
+</script>
 
 {build_month_nav()}
 
@@ -2142,12 +2227,20 @@ new Chart(document.getElementById('paceChart'), {{
           sessionStorage.setItem('scrollTo', 'ai-coaching');
         }} else {{
           const ts = data.last_fetch || '';
-          setStatus(ts ? `✓ データ取得完了 — ${{ts}}` : '✓ データ取得完了', false, true);
+          setStatus(ts ? `✓ 更新完了 — データ ${{ts}}` : '✓ 更新完了', false, true);
           const lastFetchEl = document.getElementById('last-fetch-msg');
           if (lastFetchEl && ts) {{
             lastFetchEl.className = 'last-fetch ok';
             lastFetchEl.textContent = `✓ 最終データ取得: ${{ts}}`;
           }}
+          const coachTs = data.last_coach || '';
+          const lastCoachEl = document.getElementById('last-coach-msg');
+          if (lastCoachEl && coachTs) {{
+            lastCoachEl.className = 'last-coach ok';
+            lastCoachEl.textContent = `✓ 最終 AI 評価: ${{coachTs}}`;
+          }}
+          const warnEl = document.getElementById('last-coach-warn');
+          if (warnEl) warnEl.remove();
         }}
         setTimeout(() => location.reload(), 2500);
       }}
@@ -2175,7 +2268,8 @@ new Chart(document.getElementById('paceChart'), {{
       const res = await fetch(endpoint, {{ method: 'POST' }});
       const data = await res.json();
       if (!data.started) {{
-        setStatus('すでに処理が実行中です', false, false);
+        setStatus(data.message || 'すでに処理が実行中です', false, false);
+        if (data.message) logEl.textContent = data.message;
         setButtonsDisabled(false);
         return;
       }}

@@ -2,6 +2,9 @@
 .env
 strava_tokens.json
 
+# Python venv（ローカル専用）
+.venv/
+
 # キャッシュ
 .strava_cache/
 __pycache__/
@@ -12,6 +15,9 @@ __pycache__/
 gps_streams*.csv
 report_*.html
 report_*.md
+# Garmin 日次サマリー：online(Actions)でコーチングに渡す場合のみコミット許可。
+# ※ 公開リポジトリの場合は健康データが公開される点に注意（コミットしない運用も可）。
+!garmin_daily.csv
 # coaching_report_*.md は GitHub Pages 用にコミットする
 .strava_cache/
 

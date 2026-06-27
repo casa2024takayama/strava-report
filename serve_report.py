@@ -23,9 +23,36 @@ import webbrowser
 from datetime import date
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
+from urllib.request import urlopen
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+VENV_PYTHON = os.path.join(ROOT, ".venv", "bin", "python3")
+REQUIREMENTS = os.path.join(ROOT, "requirements.txt")
 PORT = int(os.environ.get("REPORT_SERVER_PORT", "8766"))
+os.environ.setdefault("REPORT_EDITION", "local")
+
+
+def _ensure_venv() -> None:
+    """ローカル用 .venv（requests 等）を用意し、必要なら自身を venv Python で再起動。"""
+    _ensure_venv_ready()
+    if os.path.isfile(VENV_PYTHON) and os.path.realpath(sys.executable) != os.path.realpath(VENV_PYTHON):
+        os.execv(VENV_PYTHON, [VENV_PYTHON, *sys.argv])
+
+
+def _ensure_venv_ready() -> str:
+    """venv と依存パッケージを用意し、ジョブ実行用 Python のパスを返す。"""
+    if not os.path.isfile(REQUIREMENTS):
+        return sys.executable
+    if not os.path.isfile(VENV_PYTHON):
+        print("▶ 初回セットアップ: .venv を作成しています…")
+        subprocess.check_call([sys.executable, "-m", "venv", os.path.join(ROOT, ".venv")])
+        subprocess.check_call([VENV_PYTHON, "-m", "pip", "install", "-q", "-r", REQUIREMENTS])
+        print("✓ .venv 準備完了")
+    return VENV_PYTHON
+
+
+def _python() -> str:
+    return _ensure_venv_ready()
 
 _lock = threading.Lock()
 _state: dict = {
@@ -116,8 +143,11 @@ def _run_job(kind: str, steps: list[tuple[str, list[str]]]) -> None:
             _state["step"] = "done"
             if kind == "fetch":
                 _state["last_fetch"] = _read_meta("last_fetch.json")
+                _state["last_coach"] = _read_meta("last_coach.json")
                 if _state["last_fetch"]:
                     _append_log(f"✓ データ取得完了 — {_state['last_fetch']}")
+                if _state["last_coach"]:
+                    _append_log(f"✓ AI 評価 — {_state['last_coach']}")
             elif kind == "coach":
                 _state["last_coach"] = _read_meta("last_coach.json")
                 if _state["last_coach"]:
@@ -133,7 +163,12 @@ def _run_job(kind: str, steps: list[tuple[str, list[str]]]) -> None:
 def _start_job(kind: str, steps: list[tuple[str, list[str]]]) -> dict:
     with _lock:
         if _state["running"]:
-            return {"started": False, "reason": "already_running"}
+            kind_label = "データ取得" if kind == "fetch" else "AI 評価"
+            return {
+                "started": False,
+                "reason": "already_running",
+                "message": f"{kind_label}はすでに実行中です。完了までお待ちください。",
+            }
         _state.clear()
         _state.update(
             kind=kind,
@@ -150,11 +185,17 @@ def _start_job(kind: str, steps: list[tuple[str, list[str]]]) -> dict:
 
 
 def start_update() -> dict:
+    py = _python()
+    month = _current_month_arg()
+    coach_argv = [py, _coach_script(), "--month", month]
+    if _coach_script() == "coach_ollama.py":
+        coach_argv.append("--no-stream")
     return _start_job(
         "fetch",
         [
-            ("fetch", [sys.executable, "strava_fetch.py"]),
-            ("html", [sys.executable, "report_html.py"]),
+            ("fetch", [py, "strava_fetch.py"]),
+            ("coach", coach_argv),
+            ("html", [py, "report_html.py"]),
         ],
     )
 
@@ -169,16 +210,17 @@ def _coach_script() -> str:
 
 
 def start_coach() -> dict:
+    py = _python()
     month = _current_month_arg()
     coach_script = _coach_script()
-    argv = [sys.executable, coach_script, "--month", month]
+    argv = [py, coach_script, "--month", month]
     if coach_script == "coach_ollama.py":
         argv.append("--no-stream")
     return _start_job(
         "coach",
         [
             ("coach", argv),
-            ("html", [sys.executable, "report_html.py"]),
+            ("html", [py, "report_html.py"]),
         ],
     )
 
@@ -216,10 +258,42 @@ class ReportHandler(SimpleHTTPRequestHandler):
         self.send_error(404)
 
 
+def _report_url() -> str:
+    return f"http://127.0.0.1:{PORT}/index.html"
+
+
+def _server_already_running() -> bool:
+    try:
+        with urlopen(f"http://127.0.0.1:{PORT}/api/status", timeout=1) as resp:
+            return resp.status == 200
+    except OSError:
+        return False
+
+
 def main() -> None:
+    _ensure_venv()
     open_browser = "--open" in sys.argv
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), ReportHandler)
-    url = f"http://127.0.0.1:{PORT}/index.html"
+    url = _report_url()
+
+    if _server_already_running():
+        print(f"✓ レポートサーバーは既に起動中です: {url}")
+        print("   停止: lsof -ti :8766 | xargs kill")
+        if open_browser:
+            webbrowser.open(url)
+        return
+
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", PORT), ReportHandler)
+    except OSError as e:
+        if e.errno == 48:  # Address already in use
+            print(f"⚠️ ポート {PORT} は使用中です（別プロセスの可能性）")
+            print(f"   既に Strava サーバーなら {url} を開いてください")
+            print(f"   停止: lsof -ti :{PORT} | xargs kill")
+            if open_browser and _server_already_running():
+                webbrowser.open(url)
+            sys.exit(1)
+        raise
+
     print(f"🏃 Strava レポートサーバー: {url}")
     print("   Ctrl+C で停止")
     if open_browser:

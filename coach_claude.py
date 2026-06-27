@@ -21,7 +21,6 @@ GitHub Actions から毎日自動実行する想定。
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sys
@@ -33,6 +32,7 @@ from coach_common import (
     SYSTEM_PROMPT,
     build_training_summary,
     build_user_prompt,
+    compute_runs_data_hash,
     load_csv,
     load_env,
     resolve_month,
@@ -55,12 +55,7 @@ def cache_path(yyyymm: str) -> str:
 
 
 def compute_data_hash(runs_csv: str, laps_csv: str) -> str:
-    digest = hashlib.sha256()
-    for path in (runs_csv, laps_csv):
-        if os.path.exists(path):
-            with open(path, "rb") as f:
-                digest.update(f.read())
-    return digest.hexdigest()
+    return compute_runs_data_hash(runs_csv, laps_csv)
 
 
 def load_cache(yyyymm: str) -> dict | None:

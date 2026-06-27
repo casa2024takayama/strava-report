@@ -1,9 +1,11 @@
 name: 🏃 Update Strava Report
 
 on:
-  workflow_dispatch:   # GitHubアプリから手動実行
-  schedule:
-    - cron: '0 14 * * *'   # 毎日 UTC 14:00 = JST 23:00 に自動実行
+  workflow_dispatch:   # 手動実行のみ（Garmin なしのフォールバック生成）
+  # 日次の公開はローカルの publish.sh が担当（Garmin の回復・負荷を反映するため）。
+  # Actions の cron はローカル版を上書きしてしまうので停止。必要なら下行を戻す。
+  # schedule:
+  #   - cron: '0 14 * * *'   # 毎日 UTC 14:00 = JST 23:00
 
 concurrency:
   group: strava-report
@@ -89,6 +91,8 @@ jobs:
           fi
 
       - name: Generate HTML report
+        env:
+          REPORT_EDITION: online
         run: python3 report_html.py
 
       - name: Deploy to GitHub Pages

@@ -77,6 +77,54 @@ def load_csv(path: str) -> list[dict]:
         return list(csv.DictReader(f))
 
 
+def compute_runs_data_hash(runs_csv: str, laps_csv: str) -> str:
+    import hashlib
+
+    digest = hashlib.sha256()
+    for path in (runs_csv, laps_csv):
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                digest.update(f.read())
+    # Garmin データも反映：変化したらコーチングを再生成する（回復・負荷を最新に保つ）
+    try:
+        import garmin
+        gpath = garmin._csv_path()
+        if gpath and os.path.exists(gpath):
+            with open(gpath, "rb") as f:
+                digest.update(f.read())
+    except Exception:
+        pass
+    return digest.hexdigest()
+
+
+def coaching_stale_detail(yyyymm: str, runs_csv: str, laps_csv: str) -> dict | None:
+    """走行 CSV が AI 評価より新しい場合、差分情報を返す。"""
+    runs = load_csv(runs_csv)
+    if not runs:
+        return None
+    cache_path = f"coach_cache_{yyyymm}.json"
+    current = len(runs)
+    if not os.path.exists(cache_path):
+        return {
+            "current_runs": current,
+            "coach_runs": 0,
+            "message": f"AI 評価未生成（走行 {current} 件）",
+        }
+    try:
+        with open(cache_path, encoding="utf-8") as f:
+            cached = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"current_runs": current, "coach_runs": 0, "message": f"AI 評価未生成（走行 {current} 件）"}
+    if cached.get("data_hash") == compute_runs_data_hash(runs_csv, laps_csv):
+        return None
+    coach_runs = cached.get("run_count", "?")
+    return {
+        "current_runs": current,
+        "coach_runs": coach_runs,
+        "message": f"AI 評価が古いです（{coach_runs} 件時点 → 現在 {current} 件）",
+    }
+
+
 def resolve_month(month: str | None) -> tuple[int, int, str, str, str]:
     if month:
         year_s, mon_s = month.split("-", 1)
@@ -146,6 +194,15 @@ def build_training_summary(runs: list[dict], laps: list[dict], year: int, month:
                         f"| {lap.get('pace_per_km', '-')} | {lap.get('avg_heartrate', '-')} |"
                     )
 
+    # Garmin の回復・負荷指標を追記（取得済みなら）。失敗してもサマリーは出す。
+    try:
+        import garmin
+        garmin_block = garmin.build_garmin_summary(year, month)
+        if garmin_block:
+            lines.append("\n" + garmin_block)
+    except Exception:
+        pass
+
     return "\n".join(lines)
 
 
@@ -168,6 +225,9 @@ def build_user_prompt(summary_text: str, year: int, month: int) -> str:
 3. **個別アクティビティコメント** — 特筆すべき練習（良い点・改善点）
 4. **ペース・心拍分析** — VDOT 推定とゾーン配分の評価
 5. **{nxt}の練習提案** — ダニエルズメソッドに基づく具体的なプラン
+
+Garmin の回復・負荷指標（VO2max トレンド・トレーニングステータス・レディネス・HRV・睡眠・安静時心拍）が
+データにある場合は必ず参照し、強度と回復のバランス、オーバーリーチの兆候、翌月プランの強度設定に反映してください。
 """
 
 
