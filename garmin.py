@@ -75,6 +75,46 @@ def latest_vo2max(rows=None):
     return None
 
 
+def last_updated():
+    """garmin_daily.csv の更新時刻（取得時刻の目安）。無ければ None。"""
+    path = _csv_path()
+    if not path:
+        return None
+    try:
+        from datetime import datetime
+        return datetime.fromtimestamp(os.path.getmtime(path))
+    except Exception:
+        return None
+
+
+def recent_daily(n=14, year=None, month=None):
+    """ダッシュボード表示用に直近 n 日（新しい順）の行を返す。
+    year/month 指定時はその月に限定。何か値がある行のみ。"""
+    rows = load_garmin_daily()
+    if year and month:
+        rows = _month_rows(rows, year, month)
+    rows = [r for r in rows if any((r.get(k) or "").strip()
+            for k in ("vo2max", "readiness_score", "hrv_last_night", "sleep_score", "resting_hr"))]
+    rows = sorted(rows, key=lambda r: r.get("date", ""), reverse=True)
+    return rows[:n]
+
+
+def monthly_series(year, month):
+    """チャート用：対象月の日付順に並んだ各指標の配列を返す。
+    欠測は None（Chart.js が線を切る）。"""
+    rows = sorted(_month_rows(load_garmin_daily(), year, month), key=lambda r: r.get("date", ""))
+    keys = ("vo2max", "readiness_score", "hrv_last_night", "sleep_score", "resting_hr")
+    series = {"dates": [], **{k: [] for k in keys}}
+    for r in rows:
+        series["dates"].append((r.get("date") or "")[5:])  # MM-DD
+        for k in keys:
+            series[k].append(_f(r.get(k)))
+    # 全部Noneの指標は捨てる（空グラフ防止）。dates は残す。
+    series = {k: v for k, v in series.items()
+              if k == "dates" or any(x is not None for x in v)}
+    return series if series.get("dates") else None
+
+
 def build_garmin_summary(year, month):
     """対象月の Garmin 回復・負荷サマリー（Markdown）。データ無しは None。"""
     rows = _month_rows(load_garmin_daily(), year, month)

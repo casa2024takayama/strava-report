@@ -126,6 +126,85 @@ else:
             f'⚠️ {html_module.escape(coach_stale["message"])}</p>'
         )
 
+# Garmin 取得時刻（garmin_daily.csv の更新時刻）
+try:
+    import garmin as _garmin
+    _g_updated = _garmin.last_updated()
+except Exception:
+    _g_updated = None
+if _g_updated:
+    last_garmin_banner = (
+        f'<p class="last-garmin ok" id="last-garmin-msg">'
+        f'✓ Garmin 取得: {_g_updated.strftime("%Y-%m-%d %H:%M:%S")}</p>'
+    )
+else:
+    last_garmin_banner = (
+        '<p class="last-garmin none" id="last-garmin-msg">'
+        'Garmin 未取得 — garmin_fetch.py を実行</p>'
+    )
+
+# ── Garmin ダッシュボード（ローカル版のみ・健康データを公開しない） ──────────
+garmin_dashboard_html = ""
+garmin_chart_js = ""
+if REPORT_EDITION == "local":
+    try:
+        import garmin as _gm
+        _g_recent = _gm.recent_daily(14, TARGET_YEAR, TARGET_MONTH)
+        _g_series = _gm.monthly_series(TARGET_YEAR, TARGET_MONTH)
+
+        if _g_recent:
+            def _gc(r, k):
+                x = (r.get(k) or "").strip()
+                return x if x else "—"
+            _rows = "".join(
+                f"<tr><td>{r.get('date','')[5:]}</td>"
+                f"<td>{_gc(r,'vo2max')}</td><td>{_gc(r,'readiness_score')}</td>"
+                f"<td>{_gc(r,'hrv_last_night')}</td><td>{_gc(r,'sleep_score')}</td>"
+                f"<td>{_gc(r,'sleep_hours')}</td><td>{_gc(r,'resting_hr')}</td>"
+                f"<td>{_gc(r,'training_status')}</td></tr>"
+                for r in _g_recent
+            )
+            garmin_dashboard_html = f"""
+  <div class="section garmin-dash">
+    <h2>⌚ Garmin 指標ダッシュボード <small>（ローカル版のみ・直近{len(_g_recent)}日）</small></h2>
+    <canvas id="garminChart" height="140"></canvas>
+    <div class="table-wrap">
+    <table class="garmin-table">
+      <thead><tr><th>日付</th><th>VO2max</th><th>レディネス</th><th>夜間HRV</th>
+        <th>睡眠スコア</th><th>睡眠h</th><th>安静時HR</th><th>ステータス</th></tr></thead>
+      <tbody>{_rows}</tbody>
+    </table>
+    </div>
+  </div>"""
+
+        if _g_series and _g_series.get("dates"):
+            _specs = [
+                ("vo2max", "VO2max", "#dc2626", "yv"),
+                ("readiness_score", "レディネス", "#6366f1", "y"),
+                ("hrv_last_night", "夜間HRV(ms)", "#16a34a", "y"),
+                ("sleep_score", "睡眠スコア", "#f59e0b", "y"),
+            ]
+            _datasets = []
+            for key, label, color, axis in _specs:
+                if key in _g_series:
+                    _datasets.append(
+                        "{label:%s,data:%s,borderColor:'%s',backgroundColor:'%s22',"
+                        "yAxisID:'%s',tension:.3,spanGaps:true,pointRadius:2,borderWidth:2}"
+                        % (json.dumps(label, ensure_ascii=False), json.dumps(_g_series[key]),
+                           color, color, axis)
+                    )
+            garmin_chart_js = (
+                "new Chart(document.getElementById('garminChart'), {type:'line',data:{labels:%s,datasets:[%s]},"
+                "options:{responsive:true,interaction:{mode:'index',intersect:false},"
+                "plugins:{legend:{labels:{font:{size:11}}}},"
+                "scales:{y:{position:'left',title:{display:true,text:'レディネス/HRV/睡眠'},min:0},"
+                "yv:{position:'right',title:{display:true,text:'VO2max'},grid:{drawOnChartArea:false}}}}});"
+                % (json.dumps(_g_series["dates"], ensure_ascii=False), ",".join(_datasets))
+            )
+    except Exception as _e:
+        garmin_dashboard_html = ""
+        garmin_chart_js = ""
+
 # ── 月別ナビゲーション ─────────────────────────────────────────────────────
 def _available_months():
     """ディレクトリ内の月別HTMLファイルを新しい順で返す"""
@@ -1728,11 +1807,22 @@ html = f"""<!DOCTYPE html>
   .last-fetch {{ margin-top: 6px; font-size: 13px }}
   .last-fetch.ok {{ font-weight: 600; opacity: 1 }}
   .last-fetch.none {{ opacity: .8; font-size: 12px }}
+  .last-garmin {{ margin-top: 4px; font-size: 13px }}
+  .last-garmin.ok {{ font-weight: 600; opacity: 1 }}
+  .last-garmin.none {{ opacity: .8; font-size: 12px }}
   .last-coach {{ margin-top: 4px; font-size: 13px }}
   .last-coach.ok {{ font-weight: 600; opacity: 1 }}
   .last-coach.stale {{ font-weight: 600; opacity: 1; color: #fef3c7 }}
   .last-coach.none {{ opacity: .8; font-size: 12px }}
   .last-coach-warn {{ margin-top: 4px; font-size: 12px; color: #fef08a; font-weight: 600 }}
+  /* Garmin ダッシュボード（ローカル版のみ） */
+  .garmin-dash h2 small {{ font-size: 12px; font-weight: 400; color: #94a3b8 }}
+  .garmin-dash canvas {{ margin: 8px 0 16px }}
+  .garmin-dash .table-wrap {{ overflow-x: auto; -webkit-overflow-scrolling: touch }}
+  .garmin-table {{ width: 100%; border-collapse: collapse; font-size: 12.5px; white-space: nowrap }}
+  .garmin-table th, .garmin-table td {{ border: 1px solid #e2e8f0; padding: 6px 10px; text-align: center }}
+  .garmin-table th {{ background: #eef2ff; color: #3730a3; font-weight: 700; position: sticky; top: 0 }}
+  .garmin-table tbody tr:nth-child(even) {{ background: #f8fafc }}
   .ai-coach-section {{ border: 2px solid #c7d2fe; background: linear-gradient(180deg, #fff 0%, #f8fafc 100%) }}
   .ai-coach-body {{ font-size: 14px; line-height: 1.75; color: #334155; margin-top: 12px }}
   .ai-coach-body h3, .ai-coach-body h4 {{ margin: 18px 0 8px; color: #1e293b; font-size: 15px }}
@@ -1938,6 +2028,7 @@ html = f"""<!DOCTYPE html>
       </a>
       <p>{MONTH_LABEL} — Strava ランニングレポート</p>
       {last_fetch_banner}
+      {last_garmin_banner}
       {last_coach_banner}
     </div>
     <div class="header-actions" id="update-panel">
@@ -1998,6 +2089,8 @@ html = f"""<!DOCTYPE html>
       <div class="sub">m</div>
     </div>
   </div>
+
+  {garmin_dashboard_html}
 
   <!-- グラフ -->
   <div class="charts">
@@ -2133,6 +2226,7 @@ new Chart(document.getElementById('paceChart'), {{
     }}
   }}
 }});
+{garmin_chart_js}
 </script>
 <script>
 (function () {{

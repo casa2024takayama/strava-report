@@ -59,11 +59,22 @@
   .last-fetch { margin-top: 6px; font-size: 13px }
   .last-fetch.ok { font-weight: 600; opacity: 1 }
   .last-fetch.none { opacity: .8; font-size: 12px }
+  .last-garmin { margin-top: 4px; font-size: 13px }
+  .last-garmin.ok { font-weight: 600; opacity: 1 }
+  .last-garmin.none { opacity: .8; font-size: 12px }
   .last-coach { margin-top: 4px; font-size: 13px }
   .last-coach.ok { font-weight: 600; opacity: 1 }
   .last-coach.stale { font-weight: 600; opacity: 1; color: #fef3c7 }
   .last-coach.none { opacity: .8; font-size: 12px }
   .last-coach-warn { margin-top: 4px; font-size: 12px; color: #fef08a; font-weight: 600 }
+  /* Garmin ダッシュボード（ローカル版のみ） */
+  .garmin-dash h2 small { font-size: 12px; font-weight: 400; color: #94a3b8 }
+  .garmin-dash canvas { margin: 8px 0 16px }
+  .garmin-dash .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch }
+  .garmin-table { width: 100%; border-collapse: collapse; font-size: 12.5px; white-space: nowrap }
+  .garmin-table th, .garmin-table td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: center }
+  .garmin-table th { background: #eef2ff; color: #3730a3; font-weight: 700; position: sticky; top: 0 }
+  .garmin-table tbody tr:nth-child(even) { background: #f8fafc }
   .ai-coach-section { border: 2px solid #c7d2fe; background: linear-gradient(180deg, #fff 0%, #f8fafc 100%) }
   .ai-coach-body { font-size: 14px; line-height: 1.75; color: #334155; margin-top: 12px }
   .ai-coach-body h3, .ai-coach-body h4 { margin: 18px 0 8px; color: #1e293b; font-size: 15px }
@@ -274,6 +285,7 @@
       </a>
       <p>2026年6月 — Strava ランニングレポート</p>
       <p class="last-fetch ok" id="last-fetch-msg">✓ 最終データ取得: 2026-06-28 01:40:21</p>
+      <p class="last-garmin ok" id="last-garmin-msg">✓ Garmin 取得: 2026-06-28 01:04:51</p>
       <p class="last-coach ok" id="last-coach-msg">✓ 最終 AI 評価: 2026-06-28 01:42:24（claude-sonnet-4-6（Claude API））</p>
     </div>
     <div class="header-actions" id="update-panel">
@@ -754,7 +766,7 @@
             週間距離が <strong>42km</strong>→<strong>41km</strong>→<strong>53km</strong>→<strong>41km</strong> と推移。
           </p>
         </div>
-        <div class="plan-box race-box"><div class="plan-label">🗓 次のレース</div><div class="race-name">富士登山競走 頂上コース</div><div class="race-date">7月24日</div><div class="race-days">あと <span>27</span> 日</div></div>
+        <div class="plan-box race-box"><div class="plan-label">🗓 次のレース</div><div class="race-name">富士登山競走 頂上コース</div><div class="race-date">7月24日</div><div class="race-days">あと <span>26</span> 日</div></div>
       </div>
 
       <!-- 月間200km進捗（JS インタラクティブ） -->
@@ -924,14 +936,14 @@
             🔄 インターバル予定 → ロング走 26.9km / 5:25/km<span style="font-size:11px;color:#718096;margin-left:6px">(5.3km/5:50/km + 21.5km/5:25/km)</span>
           </td>
         </tr>
-        <tr style="">
-          <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">⬜</td>
-          <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">日</td>
+        <tr style="background:#fffbeb;">
+          <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">❌</td>
+          <td style="width:28px;font-weight:700;color:#fc4c02;font-size:13px;padding:8px 4px">日</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
             ロング走 <span style="font-size:11px;font-weight:400;color:#a0aec0">15km</span>
           </td>
-          <td style="font-size:12px;color:#a0aec0;padding:8px 8px;line-height:1.6">
-            低強度ジョグ 15〜20km（5:00〜5:30/km）— 脚を使い切らない
+          <td style="font-size:12px;color:#ef4444;padding:8px 8px;line-height:1.6">
+            未実施（予定: ロング走 15km）
           </td>
         </tr></tbody>
       </table>
@@ -973,6 +985,8 @@
       <div class="sub">m</div>
     </div>
   </div>
+
+  
 
   <!-- グラフ -->
   <div class="charts">
@@ -3391,6 +3405,7 @@ new Chart(document.getElementById('paceChart'), {
     }
   }
 });
+
 </script>
 <script>
 (function () {
