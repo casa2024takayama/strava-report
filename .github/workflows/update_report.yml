@@ -96,7 +96,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # HTML（当月＋月別アーカイブ）、コーチング MD、pbs.json / races.json をコミット
-          git add index.html 20*.html coaching_report_*.md pbs.json races.json
+          git add index.html 20*.html coaching_report_*.md coach_cache_*.json pbs.json races.json
           git diff --staged --quiet || git commit -m "Update report $(date '+%Y-%m-%d %H:%M') JST"
           git pull --rebase -X theirs origin main
           git push
