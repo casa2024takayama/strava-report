@@ -12,6 +12,8 @@ __pycache__/
 gps_streams*.csv
 report_*.html
 report_*.md
+# coaching_report_*.md は GitHub Pages 用にコミットする
+.strava_cache/
 
 # ログ
 *.log

@@ -14,7 +14,7 @@ import json
 import os
 import time
 import webbrowser
-from datetime import date
+from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -462,7 +462,24 @@ def main():
     export_laps_csv(details)
     export_streams_csv(details, streams_map, STREAMS_CSV)
 
+    fetched_at = datetime.now()
+    fetched_label = fetched_at.strftime("%Y-%m-%d %H:%M:%S")
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    with open(os.path.join(CACHE_DIR, "last_fetch.json"), "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "at": fetched_at.isoformat(timespec="seconds"),
+                "label": fetched_label,
+                "month": YYYYMM,
+                "runs": len(details),
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
     print("\n=== 完了 ===")
+    print(f"✓ データ取得完了 — {fetched_label}  （{len(details)} 件）")
     print(f"  {RUNS_CSV}  - アクティビティ一覧")
     print(f"  {LAPS_CSV}  - ラップ詳細")
     print(f"  gps_streams_{YYYYMM}.csv  - GPS ストリーム（3km 以上）")
