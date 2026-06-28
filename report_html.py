@@ -205,6 +205,12 @@ if REPORT_EDITION == "local":
         garmin_dashboard_html = ""
         garmin_chart_js = ""
 
+# Garmin 取得ボタン（ローカル版のみ）
+garmin_btn_html = (
+    '<button type="button" class="btn-garmin" id="btn-garmin">⌚ Garmin取得</button>'
+    if REPORT_EDITION == "local" else ""
+)
+
 # ── 月別ナビゲーション ─────────────────────────────────────────────────────
 def _available_months():
     """ディレクトリ内の月別HTMLファイルを新しい順で返す"""
@@ -1788,6 +1794,11 @@ html = f"""<!DOCTYPE html>
                 transition: transform .15s, opacity .15s }}
   .btn-coach:hover:not(:disabled) {{ transform: translateY(-1px) }}
   .btn-coach:disabled {{ opacity: .65; cursor: wait }}
+  .btn-garmin {{ background: #ecfdf5; color: #047857; border: none; border-radius: 999px;
+                 padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
+                 transition: transform .1s }}
+  .btn-garmin:hover:not(:disabled) {{ transform: translateY(-1px) }}
+  .btn-garmin:disabled {{ opacity: .65; cursor: wait }}
   .btn-sync-link {{ display: inline-flex; align-items: center; text-decoration: none;
                     background: #fff; color: #e63800; border-radius: 999px;
                     padding: 10px 18px; font-size: 13px; font-weight: 700;
@@ -2034,6 +2045,7 @@ html = f"""<!DOCTYPE html>
     <div class="header-actions" id="update-panel">
       <button type="button" class="btn-update" id="btn-update">🔄 データ更新</button>
       <button type="button" class="btn-coach" id="btn-coach">🤖 AI 評価</button>
+      {garmin_btn_html}
       <span class="update-hint" id="update-hint"></span>
     </div>
     <div class="header-actions" id="github-sync-panel">
@@ -2233,6 +2245,7 @@ new Chart(document.getElementById('paceChart'), {{
   const panel = document.getElementById('update-panel');
   const btnUpdate = document.getElementById('btn-update');
   const btnCoach = document.getElementById('btn-coach');
+  const btnGarmin = document.getElementById('btn-garmin');
   const hint = document.getElementById('update-hint');
   const statusBox = document.getElementById('update-status');
   const statusText = document.getElementById('update-status-text');
@@ -2268,6 +2281,7 @@ new Chart(document.getElementById('paceChart'), {{
   function setButtonsDisabled(disabled) {{
     btnUpdate.disabled = disabled;
     btnCoach.disabled = disabled;
+    if (btnGarmin) btnGarmin.disabled = disabled;
   }}
 
   function setStatus(msg, isError, isSuccess) {{
@@ -2286,6 +2300,7 @@ new Chart(document.getElementById('paceChart'), {{
       starting: '準備中…',
       fetch: 'Strava から取得中…',
       coach: 'Claude が評価中…',
+      garmin: 'Garmin から取得中…（数分かかります）',
       html: 'HTML 再生成中…',
       done: '完了',
       error: 'エラー',
@@ -2319,6 +2334,10 @@ new Chart(document.getElementById('paceChart'), {{
             lastCoachEl.textContent = `✓ 最終 AI 評価: ${{ts}}`;
           }}
           sessionStorage.setItem('scrollTo', 'ai-coaching');
+        }} else if (kind === 'garmin') {{
+          setStatus('✓ Garmin 取得・レポート再生成 完了', false, true);
+          const lg = document.getElementById('last-garmin-msg');
+          if (lg) lg.className = 'last-garmin ok';
         }} else {{
           const ts = data.last_fetch || '';
           setStatus(ts ? `✓ 更新完了 — データ ${{ts}}` : '✓ 更新完了', false, true);
@@ -2383,6 +2402,12 @@ new Chart(document.getElementById('paceChart'), {{
   btnCoach.addEventListener('click', () => {{
     startJob('/api/coach', 'coach', 'AI 評価を開始しています…（Claude API）');
   }});
+
+  if (btnGarmin) {{
+    btnGarmin.addEventListener('click', () => {{
+      startJob('/api/garmin', 'garmin', 'Garmin から取得を開始しています…（数分かかります）');
+    }});
+  }}
 }})();
 </script>
 </body>

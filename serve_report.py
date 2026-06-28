@@ -20,7 +20,7 @@ import subprocess
 import sys
 import threading
 import webbrowser
-from datetime import date
+from datetime import date, datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 from urllib.request import urlopen
@@ -36,6 +36,7 @@ def _ensure_venv() -> None:
     """ローカル用 .venv（requests 等）を用意し、必要なら自身を venv Python で再起動。"""
     _ensure_venv_ready()
     if os.path.isfile(VENV_PYTHON) and os.path.realpath(sys.executable) != os.path.realpath(VENV_PYTHON):
+        print("↻ venv の Python で再起動します…", flush=True)
         os.execv(VENV_PYTHON, [VENV_PYTHON, *sys.argv])
 
 
@@ -106,6 +107,8 @@ def _snapshot() -> dict:
 
 
 def _append_log(line: str) -> None:
+    # コンソール（サーバを起動したターミナル）にも出力＝HTML をリロードせず進捗が見える
+    print(f"[{datetime.now():%H:%M:%S}] {line}", flush=True)
     with _lock:
         _state["log"].append(line)
         if len(_state["log"]) > 200:
@@ -123,6 +126,8 @@ def _run_script(step: str, argv: list[str]) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        bufsize=1,  # 行バッファ
+        env={**os.environ, "PYTHONUNBUFFERED": "1"},  # 子プロセスの print を即時フラッシュ
     )
     assert proc.stdout is not None
     for line in proc.stdout:
@@ -152,6 +157,8 @@ def _run_job(kind: str, steps: list[tuple[str, list[str]]]) -> None:
                 _state["last_coach"] = _read_meta("last_coach.json")
                 if _state["last_coach"]:
                     _append_log(f"✓ AI コーチング完了 — {_state['last_coach']}")
+            elif kind == "garmin":
+                _append_log("✓ Garmin 取得・レポート再生成 完了")
     except Exception as exc:
         with _lock:
             _state["error"] = str(exc)
@@ -163,7 +170,7 @@ def _run_job(kind: str, steps: list[tuple[str, list[str]]]) -> None:
 def _start_job(kind: str, steps: list[tuple[str, list[str]]]) -> dict:
     with _lock:
         if _state["running"]:
-            kind_label = "データ取得" if kind == "fetch" else "AI 評価"
+            kind_label = {"fetch": "データ取得", "garmin": "Garmin 取得"}.get(kind, "AI 評価")
             return {
                 "started": False,
                 "reason": "already_running",
@@ -180,6 +187,9 @@ def _start_job(kind: str, steps: list[tuple[str, list[str]]]) -> dict:
             last_fetch=None,
             last_coach=None,
         )
+    _label = {"fetch": "データ更新（Strava＋AI）", "coach": "AI 評価",
+              "garmin": "Garmin 取得"}.get(kind, kind)
+    print(f"\n─── ▶ {_label} 開始 [{datetime.now():%H:%M:%S}] ───", flush=True)
     threading.Thread(target=_run_job, args=(kind, steps), daemon=True).start()
     return {"started": True}
 
@@ -225,6 +235,29 @@ def start_coach() -> dict:
     )
 
 
+# Garmin 取得（別フォルダの専用 venv で garmin_fetch.py を実行 → レポート再生成）
+GARMIN_DIR = os.path.expanduser("~/Desktop/GarminConnect")
+GARMIN_PY = os.path.join(GARMIN_DIR, ".venv", "bin", "python3")
+GARMIN_SCRIPT = os.path.join(GARMIN_DIR, "garmin_fetch.py")
+
+
+def start_garmin() -> dict:
+    py = _python()
+    if not (os.path.exists(GARMIN_PY) and os.path.exists(GARMIN_SCRIPT)):
+        return {
+            "started": False,
+            "reason": "garmin_missing",
+            "message": "Garmin 取得スクリプトが見つかりません（~/Desktop/GarminConnect）",
+        }
+    return _start_job(
+        "garmin",
+        [
+            ("garmin", [GARMIN_PY, GARMIN_SCRIPT, "--days", "35"]),
+            ("html", [py, "report_html.py"]),
+        ],
+    )
+
+
 class ReportHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=ROOT, **kwargs)
@@ -254,6 +287,9 @@ class ReportHandler(SimpleHTTPRequestHandler):
             return
         if path == "/api/coach":
             self._send_json(200, start_coach())
+            return
+        if path == "/api/garmin":
+            self._send_json(200, start_garmin())
             return
         self.send_error(404)
 
