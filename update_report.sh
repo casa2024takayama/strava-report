@@ -22,20 +22,20 @@ echo "  $(date '+%Y-%m-%d %H:%M:%S')"
 echo "═══════════════════════════════════════"
 
 echo ""
-echo "▶ Step 1: Strava データ取得..."
-"$PYTHON" strava_fetch.py
-if [ $? -ne 0 ]; then
-  echo "❌ データ取得に失敗しました"
-  exit 1
-fi
+echo "▶ Step 1: Strava データ取得（前月＋当月）..."
+PREV=$(date -v-1m +%Y-%m 2>/dev/null || python3 -c "from datetime import date; t=date.today(); print(f'{t.year}-12' if t.month==1 else f'{t.year}-{t.month-1:02d}')")
+for YM in "$PREV" "$(date +%Y-%m)"; do
+  echo "  → $YM"
+  TARGET_YEAR_MONTH="$YM" "$PYTHON" strava_fetch.py || exit 1
+done
 
 echo ""
 echo "▶ Step 2: AI コーチング（Claude）..."
 if [ -n "${ANTHROPIC_API_KEY:-}" ] || grep -qE '^ANTHROPIC_API_KEY=.' .env 2>/dev/null; then
-  "$PYTHON" coach_claude.py
-  if [ $? -ne 0 ]; then
-    echo "⚠️  AI コーチングに失敗しました（レポートは続行）"
-  fi
+  for YM in "$PREV" "$(date +%Y-%m)"; do
+    echo "  → $YM"
+    "$PYTHON" coach_claude.py --month "$YM" || echo "⚠️  $YM のコーチングに失敗（続行）"
+  done
 else
   echo "⚠️  ANTHROPIC_API_KEY 未設定 — コーチングをスキップ"
 fi
@@ -43,11 +43,10 @@ fi
 echo ""
 echo "▶ Step 3: HTML レポート生成（ローカル版）..."
 export REPORT_EDITION=local
-"$PYTHON" report_html.py
-if [ $? -ne 0 ]; then
-  echo "❌ レポート生成に失敗しました"
-  exit 1
-fi
+for YM in "$PREV" "$(date +%Y-%m)"; do
+  echo "  → $YM"
+  TARGET_YEAR_MONTH="$YM" "$PYTHON" report_html.py || exit 1
+done
 
 echo ""
 echo "▶ Step 4: ローカルサーバー起動（HTML 上の「データ更新」ボタンが使えます）"

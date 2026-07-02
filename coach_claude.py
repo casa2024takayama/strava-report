@@ -14,7 +14,8 @@ GitHub Actions から毎日自動実行する想定。
   ANTHROPIC_API_KEY   必須（https://console.anthropic.com/）
   CLAUDE_MODEL         既定 claude-sonnet-4-6
   CLAUDE_THINKING      既定 disabled（adaptive で思考オン＝高コスト）
-  CLAUDE_TIMEOUT       既定 180（秒）
+  CLAUDE_MAX_TOKENS    既定 16384（1回の応答上限）
+  CLAUDE_TIMEOUT       既定 300（秒）
   COACH_FORCE=1        キャッシュ無視（--force と同じ）
 """
 
@@ -45,7 +46,8 @@ load_env()
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "") or os.environ.get("CLAUDE_API_KEY", "")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 CLAUDE_THINKING = os.environ.get("CLAUDE_THINKING", "disabled").strip().lower()
-CLAUDE_TIMEOUT = int(os.environ.get("CLAUDE_TIMEOUT", "180"))
+CLAUDE_MAX_TOKENS = int(os.environ.get("CLAUDE_MAX_TOKENS", "16384"))
+CLAUDE_TIMEOUT = int(os.environ.get("CLAUDE_TIMEOUT", "300"))
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
 
@@ -128,7 +130,7 @@ def run_coaching_claude(summary_text: str, year: int, month: int) -> str:
     user_prompt = build_user_prompt(summary_text, year, month)
     body: dict = {
         "model": CLAUDE_MODEL,
-        "max_tokens": 8192,
+        "max_tokens": CLAUDE_MAX_TOKENS,
         "system": SYSTEM_PROMPT,
         "messages": [{"role": "user", "content": user_prompt}],
     }
@@ -138,7 +140,7 @@ def run_coaching_claude(summary_text: str, year: int, month: int) -> str:
         body["thinking"] = {"type": "disabled"}
 
     print(f"\n🏃 AI マラソンコーチ（Claude / {CLAUDE_MODEL}）")
-    print(f"   thinking={CLAUDE_THINKING}")
+    print(f"   thinking={CLAUDE_THINKING}  max_tokens={CLAUDE_MAX_TOKENS}")
     print("─" * 50)
     print("[💭 分析中...]\n")
 

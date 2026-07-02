@@ -12,7 +12,13 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 import calendar as _cal_mod
 
-from coach_common import coaching_stale_detail, parse_coach_meta_from_md
+from coach_common import (
+    coaching_stale_detail,
+    load_next_month_plan_markdown,
+    parse_coach_meta_from_md,
+    prev_month_label,
+    resolve_ai_weekly_plan,
+)
 
 # ── 対象月の決定 ────────────────────────────────────────────────────────────
 _ym_env = os.environ.get("TARGET_YEAR_MONTH", "")
@@ -946,6 +952,20 @@ def build_weekly_menu(runs):
     week_end = mon + timedelta(days=6)
     day_labels = ["月", "火", "水", "木", "金", "土", "日"]
 
+    ai_week = resolve_ai_weekly_plan(TARGET_YEAR, TARGET_MONTH, today)
+    if ai_week:
+        weekly_plan = ai_week["plan"]
+        plan_by_date = ai_week.get("plan_by_date") or {}
+        weekly_plan_range = ai_week["range_km"]
+        plan_subtitle = ai_week["subtitle"]
+        plan_title_extra = ai_week.get("week_title", "")
+    else:
+        weekly_plan = _WEEKLY_PLAN
+        plan_by_date = {}
+        weekly_plan_range = _WEEKLY_PLAN_RANGE
+        plan_subtitle = "固定プランに対する実績を自動評価。月曜始まり・VDOT 51（現走力）基準。"
+        plan_title_extra = ""
+
     # ── 月またぎ対応：前後月のCSVも読み込んで今週データを完成させる ──────
     # 月またぎ週は両月のレポートに同じ内容を表示する（リダイレクト廃止）
     all_runs = list(runs)
@@ -983,12 +1003,20 @@ def build_weekly_menu(runs):
 
     rows           = ""
     week_actual_km = 0.0
-    week_target_km = sum(t[3] for t in _WEEKLY_PLAN)
+    week_target_km = 0.0
     _type_names    = {"easy": "イージー", "interval": "インターバル",
                       "tempo": "テンポ走",  "long": "ロング走", "rest": "休養"}
 
-    for i, (_, plan_type, plan_label, plan_dist, plan_desc) in enumerate(_WEEKLY_PLAN):
-        d         = week_dates[i]
+    for i, d in enumerate(week_dates):
+        if plan_by_date:
+            _, plan_type, plan_label, plan_dist, plan_desc = plan_by_date.get(
+                d, (i, "rest", "—", 0.0, "AI提案の対象週外")
+            )
+            if d in plan_by_date:
+                week_target_km += plan_dist
+        else:
+            _, plan_type, plan_label, plan_dist, plan_desc = weekly_plan[i]
+            week_target_km += plan_dist
         day_runs  = runs_by_date.get(d, [])
         actual_km = sum(float(r.get("distance_km") or 0) for r in day_runs)
         week_actual_km += actual_km
@@ -1070,11 +1098,12 @@ def build_weekly_menu(runs):
     prog_color     = "#22c55e" if week_actual_km >= week_target_km else "#3b82f6"
     status_txt     = "✅ 週目標達成！" if week_actual_km >= week_target_km else f"残り {remaining_km:.1f}km"
 
+    title_suffix = f" / {html_module.escape(plan_title_extra)}" if plan_title_extra else ""
     return f"""
     <div class="plan-box" style="margin-bottom:24px">
-      <div class="plan-label">📅 今週の練習メニュー（{week_start_str}〜{week_end_str} / 週{_WEEKLY_PLAN_RANGE}km目標）</div>
+      <div class="plan-label">📅 今週の練習メニュー（{week_start_str}〜{week_end_str} / 週{weekly_plan_range}km目標）{title_suffix}</div>
       <div style="font-size:11px;color:#a0aec0;margin-bottom:10px">
-        固定プランに対する実績を自動評価。月曜始まり・VDOT 51（現走力）基準。
+        {html_module.escape(plan_subtitle)}
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
         <tbody>{rows}</tbody>
@@ -1666,15 +1695,49 @@ def md_to_html(md: str) -> str:
     lines = md.splitlines()
     out: list[str] = []
     in_ul = False
-    for raw in lines:
+    i = 0
+    while i < len(lines):
+        raw = lines[i]
         line = raw.rstrip()
         s = line.strip()
         if not s:
             if in_ul:
                 out.append("</ul>")
                 in_ul = False
+            i += 1
             continue
-        if s.startswith("### "):
+        if s.startswith("|") and "|" in s[1:]:
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            table_rows: list[list[str]] = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                row = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+                if row and not all(re.match(r"^[-:\s]+$", c) for c in row):
+                    table_rows.append(row)
+                i += 1
+            if table_rows:
+                out.append('<table class="md-table"><tbody>')
+                for ri, row in enumerate(table_rows):
+                    tag = "th" if ri == 0 else "td"
+                    out.append(
+                        "<tr>"
+                        + "".join(f"<{tag}>{_inline_md(c)}</{tag}>" for c in row)
+                        + "</tr>"
+                    )
+                out.append("</tbody></table>")
+            continue
+        if s.startswith("#### "):
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            out.append(f"<h5>{_inline_md(s[5:])}</h5>")
+        elif s.startswith("> "):
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+            out.append(f'<blockquote class="md-quote">{_inline_md(s[2:])}</blockquote>')
+        elif s.startswith("### "):
             if in_ul:
                 out.append("</ul>")
                 in_ul = False
@@ -1704,6 +1767,7 @@ def md_to_html(md: str) -> str:
                 out.append("</ul>")
                 in_ul = False
             out.append(f"<p>{_inline_md(s)}</p>")
+        i += 1
     if in_ul:
         out.append("</ul>")
     return "\n".join(out)
@@ -1746,6 +1810,29 @@ def build_ai_coaching_section() -> str:
         f'    <h2>{title}</h2>\n'
         '    <p class="ai-coach-placeholder">'
         '月間総評・翌月提案は GitHub Actions の毎日更新後、または coach_claude.py 実行後にここに表示されます。</p>\n'
+        '  </div>'
+    )
+
+
+def build_ai_next_month_plan_section() -> str:
+    """前月 AI レビューの「当月練習提案」を表示（当月 HTML 用）。"""
+    plan_md = load_next_month_plan_markdown(TARGET_YEAR, TARGET_MONTH)
+    if not plan_md:
+        return ""
+    src = prev_month_label(TARGET_YEAR, TARGET_MONTH)
+    body = md_to_html(plan_md)
+    ai_week = resolve_ai_weekly_plan(TARGET_YEAR, TARGET_MONTH, date.today())
+    week_note = ""
+    if ai_week:
+        week_note = (
+            f'<p class="ai-plan-week-note">📅 今週の日次メニューは下の「今週の練習メニュー」に '
+            f'<strong>{html_module.escape(ai_week["week_title"])}</strong> として反映済みです。</p>'
+        )
+    return (
+        '\n  <div class="section ai-plan-section" id="ai-month-plan">\n'
+        f'    <h2>🤖 {html_module.escape(src)} AIコーチからの{MONTH_LABEL}練習提案</h2>\n'
+        f'    {week_note}'
+        '    <div class="ai-coach-body ai-plan-body">' + body + '</div>\n'
         '  </div>'
     )
 
@@ -1840,6 +1927,12 @@ html = f"""<!DOCTYPE html>
   .ai-coach-body ul {{ margin: 8px 0 8px 20px }}
   .ai-coach-body hr {{ border: none; border-top: 1px solid #e2e8f0; margin: 16px 0 }}
   .ai-coach-placeholder {{ color: #64748b; font-size: 13px; margin-top: 8px }}
+  .ai-plan-section {{ border: 2px solid #86efac; background: linear-gradient(180deg, #fff 0%, #f0fdf4 100%) }}
+  .ai-plan-week-note {{ font-size: 13px; color: #166534; margin: 8px 0 12px; line-height: 1.6 }}
+  .ai-plan-body .md-table {{ width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 10px 0 }}
+  .ai-plan-body .md-table th, .ai-plan-body .md-table td {{
+    border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left }}
+  .ai-plan-body .md-table th {{ background: #ecfdf5; color: #065f46 }}
   .container {{ max-width: 1100px; margin: 0 auto; padding: 32px 20px }}
   .cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
              gap: 16px; margin-bottom: 32px }}
@@ -2064,6 +2157,8 @@ html = f"""<!DOCTYPE html>
 <div class="container">
 
   {build_ai_coaching_section()}
+
+  {build_ai_next_month_plan_section()}
 
   {build_pb_ladder(load_pbs())}
 

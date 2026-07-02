@@ -10,6 +10,11 @@ Strava レポート用ローカル HTTP サーバー
 使い方:
   python3 serve_report.py
   python3 serve_report.py --open
+
+対話キー（TTY のとき）:
+  q  終了
+  r  サーバー再起動
+  o  ブラウザでレポートを開く
 """
 
 from __future__ import annotations
@@ -18,7 +23,9 @@ import json
 import os
 import subprocess
 import sys
+import termios
 import threading
+import tty
 import webbrowser
 from datetime import date, datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -76,6 +83,20 @@ def _current_month_arg() -> str:
     return f"{today.year}-{today.month:02d}"
 
 
+def _previous_month_arg(from_month: str | None = None) -> str:
+    ym = from_month or _current_month_arg()
+    y, m = map(int, ym.split("-", 1))
+    if m == 1:
+        return f"{y - 1}-12"
+    return f"{y}-{m - 1:02d}"
+
+
+def _months_to_fetch() -> list[str]:
+    """当月＋前月（月末ランの取りこぼし防止）。"""
+    cur = _current_month_arg()
+    return [_previous_month_arg(cur), cur]
+
+
 def _read_meta(filename: str, key: str = "label") -> str | None:
     path = os.path.join(ROOT, ".strava_cache", filename)
     if not os.path.exists(path):
@@ -115,11 +136,17 @@ def _append_log(line: str) -> None:
             _state["log"] = _state["log"][-200:]
 
 
-def _run_script(step: str, argv: list[str]) -> None:
+def _run_script(step: str, argv: list[str], extra_env: dict[str, str] | None = None) -> None:
     with _lock:
         _state["step"] = step
     script_name = os.path.basename(argv[1]) if len(argv) > 1 else argv[0]
-    _append_log(f"▶ {script_name} 開始")
+    month_note = ""
+    if extra_env and extra_env.get("TARGET_YEAR_MONTH"):
+        month_note = f" ({extra_env['TARGET_YEAR_MONTH']})"
+    _append_log(f"▶ {script_name}{month_note} 開始")
+    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    if extra_env:
+        env.update(extra_env)
     proc = subprocess.Popen(
         argv,
         cwd=ROOT,
@@ -127,7 +154,7 @@ def _run_script(step: str, argv: list[str]) -> None:
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,  # 行バッファ
-        env={**os.environ, "PYTHONUNBUFFERED": "1"},  # 子プロセスの print を即時フラッシュ
+        env=env,
     )
     assert proc.stdout is not None
     for line in proc.stdout:
@@ -138,10 +165,10 @@ def _run_script(step: str, argv: list[str]) -> None:
     _append_log(f"✓ {script_name} 完了")
 
 
-def _run_job(kind: str, steps: list[tuple[str, list[str]]]) -> None:
+def _run_job(kind: str, steps: list[tuple[str, list[str], dict[str, str] | None]]) -> None:
     try:
-        for step, argv in steps:
-            _run_script(step, argv)
+        for step, argv, extra_env in steps:
+            _run_script(step, argv, extra_env)
         with _lock:
             _state["done"] = True
             _state["running"] = False
@@ -167,7 +194,7 @@ def _run_job(kind: str, steps: list[tuple[str, list[str]]]) -> None:
         _append_log(f"❌ {exc}")
 
 
-def _start_job(kind: str, steps: list[tuple[str, list[str]]]) -> dict:
+def _start_job(kind: str, steps: list[tuple[str, list[str], dict[str, str] | None]]) -> dict:
     with _lock:
         if _state["running"]:
             kind_label = {"fetch": "データ取得", "garmin": "Garmin 取得"}.get(kind, "AI 評価")
@@ -196,18 +223,20 @@ def _start_job(kind: str, steps: list[tuple[str, list[str]]]) -> dict:
 
 def start_update() -> dict:
     py = _python()
-    month = _current_month_arg()
-    coach_argv = [py, _coach_script(), "--month", month]
-    if _coach_script() == "coach_ollama.py":
-        coach_argv.append("--no-stream")
-    return _start_job(
-        "fetch",
-        [
-            ("fetch", [py, "strava_fetch.py"]),
-            ("coach", coach_argv),
-            ("html", [py, "report_html.py"]),
-        ],
-    )
+    months = _months_to_fetch()
+    steps: list[tuple[str, list[str], dict[str, str] | None]] = []
+    for ym in months:
+        steps.append(("fetch", [py, "strava_fetch.py"], {"TARGET_YEAR_MONTH": ym}))
+    for ym in months:
+        coach_argv = [py, _coach_script(), "--month", ym]
+        if _coach_script() == "coach_ollama.py":
+            coach_argv.append("--no-stream")
+        steps.append(("coach", coach_argv, None))
+    for ym in months:
+        steps.append(
+            ("html", [py, "report_html.py"], {"TARGET_YEAR_MONTH": ym, "REPORT_EDITION": "local"}),
+        )
+    return _start_job("fetch", steps)
 
 
 def _coach_script() -> str:
@@ -229,8 +258,8 @@ def start_coach() -> dict:
     return _start_job(
         "coach",
         [
-            ("coach", argv),
-            ("html", [py, "report_html.py"]),
+            ("coach", argv, None),
+            ("html", [py, "report_html.py"], {"REPORT_EDITION": "local"}),
         ],
     )
 
@@ -252,8 +281,8 @@ def start_garmin() -> dict:
     return _start_job(
         "garmin",
         [
-            ("garmin", [GARMIN_PY, GARMIN_SCRIPT, "--days", "35"]),
-            ("html", [py, "report_html.py"]),
+            ("garmin", [GARMIN_PY, GARMIN_SCRIPT, "--days", "35"], None),
+            ("html", [py, "report_html.py"], {"REPORT_EDITION": "local"}),
         ],
     )
 
@@ -298,6 +327,84 @@ def _report_url() -> str:
     return f"http://127.0.0.1:{PORT}/index.html"
 
 
+class ReportServer:
+    def __init__(self) -> None:
+        self.server: ThreadingHTTPServer | None = None
+        self.thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self.server is not None:
+            return
+        try:
+            self.server = ThreadingHTTPServer(("127.0.0.1", PORT), ReportHandler)
+        except OSError:
+            self.server = None
+            self.thread = None
+            raise
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def stop(self) -> None:
+        if self.server is None:
+            return
+        self.server.shutdown()
+        self.server.server_close()
+        if self.thread is not None:
+            self.thread.join(timeout=5)
+        self.server = None
+        self.thread = None
+
+    def restart(self) -> None:
+        with _lock:
+            job_running = _state.get("running", False)
+        if job_running:
+            print("⚠️  ジョブ実行中ですがサーバーを再起動します（ジョブはバックグラウンドで継続）", flush=True)
+        print("↻ サーバーを再起動しています…", flush=True)
+        self.stop()
+        self.start()
+        print(f"✓ 再起動完了: {_report_url()}", flush=True)
+
+
+def _read_key() -> str:
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        return sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def _print_shortcuts() -> None:
+    print("   q 終了  |  r 再起動  |  o ブラウザを開く", flush=True)
+
+
+def _interactive_loop(report_server: ReportServer, url: str) -> None:
+    _print_shortcuts()
+    try:
+        while True:
+            key = _read_key()
+            if key in ("q", "Q", "\x03"):  # q or Ctrl+C
+                print("\n停止しました", flush=True)
+                report_server.stop()
+                return
+            if key in ("r", "R"):
+                print("", flush=True)
+                report_server.restart()
+                _print_shortcuts()
+                continue
+            if key in ("o", "O"):
+                print("\n🌐 ブラウザを開きます…", flush=True)
+                webbrowser.open(url)
+                _print_shortcuts()
+                continue
+            if key in ("\r", "\n"):
+                continue
+    except KeyboardInterrupt:
+        print("\n停止しました", flush=True)
+        report_server.stop()
+
+
 def _server_already_running() -> bool:
     try:
         with urlopen(f"http://127.0.0.1:{PORT}/api/status", timeout=1) as resp:
@@ -318,8 +425,9 @@ def main() -> None:
             webbrowser.open(url)
         return
 
+    report_server = ReportServer()
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", PORT), ReportHandler)
+        report_server.start()
     except OSError as e:
         if e.errno == 48:  # Address already in use
             print(f"⚠️ ポート {PORT} は使用中です（別プロセスの可能性）")
@@ -331,14 +439,20 @@ def main() -> None:
         raise
 
     print(f"🏃 Strava レポートサーバー: {url}")
-    print("   Ctrl+C で停止")
     if open_browser:
         webbrowser.open(url)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\n停止しました")
-        server.server_close()
+
+    interactive = sys.stdin.isatty() and not os.environ.get("CI")
+    if interactive:
+        _interactive_loop(report_server, url)
+    else:
+        print("   Ctrl+C で停止", flush=True)
+        try:
+            while report_server.thread is not None and report_server.thread.is_alive():
+                report_server.thread.join(timeout=3600)
+        except KeyboardInterrupt:
+            print("\n停止しました", flush=True)
+            report_server.stop()
 
 
 if __name__ == "__main__":
