@@ -487,13 +487,37 @@ def build_user_prompt(summary_text: str, year: int, month: int) -> str:
     nxt = next_month_label(year, month)
     ny, nm = next_month_year_month(year, month)
     plan_constraints = build_monthly_plan_constraints(ny, nm)
+
+    # ── 現在日付の考慮（月の途中なら「経過日数に対するペース」で評価させる）──
+    today = date.today()
+    total_days = calendar.monthrange(year, month)[1]
+    if today.year == year and today.month == month:
+        elapsed = today.day
+        pct = round(elapsed / total_days * 100)
+        expected_km = round(MONTHLY_DISTANCE_GOAL_KM * pct / 100)
+        date_context = (
+            f"### ⏱ 重要：本日は {today.isoformat()}。{year}年{month}月は**まだ途中**です"
+            f"（{total_days}日中 {elapsed}日経過・進捗 {pct}%）。\n"
+            f"- 月間走行距離は**経過日数に対するペース**で評価すること。"
+            f"目安：進捗{pct}%なら {MONTHLY_DISTANCE_GOAL_KM}km × {pct}% ≈ **{expected_km}km** が現時点のペース基準。\n"
+            f"- **月末時点の目標（{MONTHLY_DISTANCE_GOAL_KM}km）との単純比較で『不足』と断定しないこと。**"
+            f"「現ペースなら月末に約○km見込み（目標比△）」の形で述べる。\n"
+            f"- 残り {total_days - elapsed} 日を踏まえた現実的な助言にすること。\n"
+        )
+    else:
+        date_context = (
+            f"### 本日は {today.isoformat()}。{year}年{month}月は**終了済み**です。"
+            f"月全体の確定データとして総括・評価してください。\n"
+        )
+
     return f"""{summary_text}
 
 ---
 
+{date_context}
 上記の{year}年{month}月の練習データについて、以下の観点でレビューとアドバイスをお願いします：
 
-1. **月間総評** — 量・質・バランスの評価（月間200km目標との比較も含める）
+1. **月間総評** — 量・質・バランスの評価（月間200km目標との比較。**ただし上の日付注記に従い、月途中なら経過ペースで評価**）
 2. **週別評価** — 各週の練習内容と課題
 3. **個別アクティビティコメント** — 特筆すべき練習（良い点・改善点）
 4. **ペース・心拍分析** — VDOT 推定とゾーン配分の評価
