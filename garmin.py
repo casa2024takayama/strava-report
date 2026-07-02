@@ -26,7 +26,8 @@ _REPO_DIR = os.path.dirname(os.path.abspath(__file__))
 _CANDIDATES = [
     os.environ.get("GARMIN_DAILY_CSV", ""),
     os.path.join(_REPO_DIR, "garmin_daily.csv"),
-    os.path.expanduser("~/Desktop/GarminConnect/garmin_daily.csv"),
+    os.path.expanduser("~/GarminConnect/garmin_daily.csv"),
+    os.path.expanduser("~/Desktop/GarminConnect/garmin_daily.csv"),  # 旧場所（後方互換）
 ]
 
 

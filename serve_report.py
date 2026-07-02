@@ -265,7 +265,9 @@ def start_coach() -> dict:
 
 
 # Garmin 取得（別フォルダの専用 venv で garmin_fetch.py を実行 → レポート再生成）
-GARMIN_DIR = os.path.expanduser("~/Desktop/GarminConnect")
+GARMIN_DIR = os.path.expanduser("~/GarminConnect")
+if not os.path.isdir(GARMIN_DIR):  # 旧場所フォールバック
+    GARMIN_DIR = os.path.expanduser("~/Desktop/GarminConnect")
 GARMIN_PY = os.path.join(GARMIN_DIR, ".venv", "bin", "python3")
 GARMIN_SCRIPT = os.path.join(GARMIN_DIR, "garmin_fetch.py")
 
@@ -276,7 +278,7 @@ def start_garmin() -> dict:
         return {
             "started": False,
             "reason": "garmin_missing",
-            "message": "Garmin 取得スクリプトが見つかりません（~/Desktop/GarminConnect）",
+            "message": "Garmin 取得スクリプトが見つかりません（~/GarminConnect）",
         }
     return _start_job(
         "garmin",
