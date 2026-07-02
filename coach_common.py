@@ -505,6 +505,19 @@ def build_user_prompt(summary_text: str, year: int, month: int) -> str:
 
 Garmin の回復・負荷指標（VO2max トレンド・トレーニングステータス・レディネス・HRV・睡眠・安静時心拍）が
 データにある場合は必ず参照し、強度と回復のバランス、オーバーリーチの兆候、翌月プランの強度設定に反映してください。
+
+### 出力書式（第5項＝{nxt}の練習提案は以下を厳守。自動解析に使用します）
+- 見出しは必ず **`## 5. {nxt}の練習提案`**（この文字列のまま）
+- 各週の見出しは **`#### 第N週（M/D〜M/D）：<週テーマ> 目標XXkm`**
+  （括弧「（）」・チルダ「〜」・コロン「：」は**全角**、日付は `7/1` 形式）
+- 各週に**日別テーブル**を付ける（列：`曜 | 日付 | 種別 | 距離 | 内容`、曜日は月〜日、日付は `7/1` 形式）
+  例：
+  ```
+  #### 第1週（7/1〜7/6）：ベース再構築 目標40km
+  | 曜 | 日付 | 種別 | 距離 | 内容 |
+  |----|------|------|------|------|
+  | 月 | 7/1 | E | 8km | イージー 6:00/km |
+  ```
 """
 
 
@@ -572,5 +585,23 @@ def save_coaching_report(
             ensure_ascii=False,
             indent=2,
         )
+
+    # ── 翌月プランの自動解析チェック（週次メニュー供給の要）──────────────
+    # 生成結果が想定書式どおりか＝週次メニューが正しく抽出できるかを保存時に検査。
+    try:
+        ny, nm = next_month_year_month(year, month)
+        plan_md = load_next_month_plan_markdown(ny, nm)
+        if not plan_md:
+            print(f"  ⚠️ 翌月プラン『## 5. {ny}年{nm}月の練習提案』が抽出できません"
+                  f"（書式ずれ→週次メニューが固定プランにフォールバックします）")
+        else:
+            weeks = _WEEK_HEADER_RE.findall(plan_md)
+            if len(weeks) < 3:
+                print(f"  ⚠️ 週見出し『#### 第N週（M/D〜M/D）：…』が {len(weeks)} 個のみ"
+                      f"（週次メニューが一部フォールバックする可能性）")
+            else:
+                print(f"  ✓ 翌月プラン解析OK（週見出し {len(weeks)} 個）")
+    except Exception as _e:  # noqa: BLE001
+        print(f"  ⚠️ 翌月プランの解析チェックに失敗: {_e}")
 
     return coached_label
