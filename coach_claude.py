@@ -33,6 +33,7 @@ from coach_common import (
     SYSTEM_PROMPT,
     build_training_summary,
     build_user_prompt,
+    check_coaching_response_soft,
     compute_runs_data_hash,
     load_csv,
     load_env,
@@ -186,6 +187,10 @@ def run_coaching_claude(summary_text: str, year: int, month: int) -> str:
         for warning in warnings:
             print(f"⚠️  {warning}", file=sys.stderr)
         sys.exit(1)
+
+    # 軽微な注意（絵文字で終わる等）はログのみ。内容自体は保存する。
+    for note in check_coaching_response_soft(text):
+        print(f"ℹ️  {note}", file=sys.stderr)
 
     return text
 

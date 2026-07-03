@@ -546,6 +546,7 @@ Garmin の回復・負荷指標（VO2max トレンド・トレーニングステ
 
 
 def validate_coaching_response(text: str, *, done_reason: str | None = None) -> list[str]:
+    """致命的な警告（内容が壊れている）を返す。保存を止めるべき問題のみ。"""
     warnings: list[str] = []
     if done_reason == "length":
         warnings.append("トークン上限で打ち切られた可能性があります")
@@ -556,10 +557,16 @@ def validate_coaching_response(text: str, *, done_reason: str | None = None) -> 
             warnings.append(f"「{label}」らしき記述が見つかりません")
     if not any(k in text for k in ("翌月", "練習提案", "の練習提案")):
         warnings.append("翌月の練習提案らしき記述が見つかりません")
-    tail = text.rstrip()
-    if tail and tail[-1] not in "。．.!！?？\n）)」":
-        warnings.append("文末が途中で切れている可能性があります")
     return warnings
+
+
+def check_coaching_response_soft(text: str) -> list[str]:
+    """軽微な注意（保存はする・ログに出すだけ）。絵文字等での文末は正常とみなす。"""
+    notes: list[str] = []
+    tail = text.rstrip()
+    if tail and not re.search(r"[。．.!！?？\n）)」]$", tail) and not re.search(r"[\U0001F300-\U0001FAFF☀-➿]$", tail):
+        notes.append("文末が途中で切れている可能性があります（軽微・保存は継続）")
+    return notes
 
 
 def parse_coach_meta_from_md(path: str) -> dict | None:
