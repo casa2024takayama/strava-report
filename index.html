@@ -295,9 +295,9 @@
         <h1>🏃 ランニングレポート</h1>
       </a>
       <p>2026年7月 — Strava ランニングレポート</p>
-      <p class="last-fetch ok" id="last-fetch-msg">✓ 最終データ取得: 2026-07-05 23:00:39</p>
-      <p class="last-garmin ok" id="last-garmin-msg">✓ Garmin 取得: 2026-07-05 23:00:34</p>
-      <p class="last-coach ok" id="last-coach-msg">✓ 最終 AI 評価: 2026-07-05 23:02:20（claude-sonnet-4-6（Claude API））</p>
+      <p class="last-fetch ok" id="last-fetch-msg">✓ 最終データ取得: 2026-07-05 16:53:23</p>
+      <p class="last-garmin none" id="last-garmin-msg">Garmin 未取得 — garmin_fetch.py を実行</p>
+      <p class="last-coach ok" id="last-coach-msg">✓ 最終 AI 評価: 2026-07-05 16:55:01（claude-sonnet-4-6（Claude API））</p>
     </div>
     <div class="header-actions" id="update-panel">
       <button type="button" class="btn-update" id="btn-update">🔄 データ更新</button>
@@ -323,180 +323,191 @@
   
   <div class="section ai-coach-section" id="ai-coaching">
     <h2>🤖 AI 月次コーチング（claude-sonnet-4-6（Claude API））</h2>
-    <div class="ai-coach-body"><h3>2026年7月 ランニングレビュー（7月5日時点・中間評価）</h3>
+    <div class="ai-coach-body"><h3>2026年7月 ランニングレビュー</h3>
 <hr>
 <h3>1. 月間総評</h3>
-<p><strong>現時点の走行距離：28.5km（5日経過・進捗16%）</strong></p>
-<p>進捗16%の時点で28.5kmを記録しています。同ペースで推移した場合、<strong>月末には約178km見込み</strong>（目標200kmに対して約89%）となります。現時点での距離は経過日数に対して概ねペース通りですが、若干のビハインドがあるため、残り26日でコンスタントに走る必要があります。</p>
-<p>ただし、<strong>距離よりも体の状態が大きな懸念点</strong>です。Garminの生理指標を見ると、トレーニングステータスが「STRAINED（ひずみ状態）」、トレーニングレディネスが平均20/100（範囲1〜44）、HRVがUNBALANCED、睡眠スコア59点・睡眠時間5.5時間と、<strong>疲労と回復不足の警戒シグナルが複数点灯</strong>しています。安静時心拍の50→51bpmへの上昇も蓄積疲労のサインです。</p>
-<p>量の確保を焦る前に、<strong>まず回復を優先することが7月後半の最優先課題</strong>です。</p>
+<p><strong>現時点（7/5）の進捗評価</strong></p>
+<p>月間200km目標に対し、7月5日終了時点での走行距離は <strong>28.5km</strong>。経過日数5日（進捗16%）に対するペース基準は約32kmですので、現時点では <strong>目標ペースをほぼ満たしています</strong>（基準比89%）。残り26日で171.5kmを走る必要があり、現ペース（28.5km÷5日=5.7km/日）を維持すれば月末には約177km見込みです。残り期間で週あたり45〜48km程度を意識すれば200km達成は十分射程内です。</p>
+<p><strong>質・バランスの評価</strong></p>
+<p>3回の練習でE走・インターバル系・ファルトレク的要素が混在しており、スタートとしては多様な刺激が入っています。ただし <strong>同日（7/5）に2回練習</strong>しており、Evening RunはHR185〜188bpmに達する非常に高強度。回復を十分に考慮しながら積み上げていくことが7月後半の課題です。</p>
 <hr>
 <h3>2. 週別評価</h3>
-<h4>第1週（7/1〜7/5）：28.5km／3回</h4>
-<p><strong>良い点：</strong></p>
-<ul>
-<li>3回の練習でそれぞれ異なる刺激（ゆっくりジョグ、ドリル系、ビルドアップ的な高強度走）を実施しており、単調ではない練習構成。</li>
-<li>7/2のNight Runは序盤の心拍が120〜134bpmと低く抑えられており、イージーゾーンでの走行を意識した形跡が見られる。</li>
-</ul>
-<p><strong>課題：</strong></p>
-<ul>
-<li>7/5に2本（Evening RunとNight Run）を同日実施しており、特にEvening Runが非常に高強度だったことを考えると、<strong>同日2部練の負荷は過大</strong>。</li>
-<li>トレーニングレディネスが平均20という極めて低い値にもかかわらず高強度走を行っており、<strong>回復が追いついていない状態での練習強行</strong>が見受けられる。</li>
-<li>睡眠5.5時間は回復には明らかに不足しており、<strong>練習の質・量よりも睡眠改善が急務</strong>。</li>
-</ul>
+<h4>第1週（7/1〜7/6）：28.5km</h4>
+<table class="md-table"><tbody>
+<tr><th>指標</th><th>評価</th></tr>
+<tr><td>距離</td><td>週40km目標に対し28.5km（71%）。ただし週の途中（日曜終了）のため参考値</td></tr>
+<tr><td>強度バランス</td><td>高強度（Evening Run）が1回含まれ、クオリティセッションとしては適正</td></tr>
+<tr><td>回復</td><td><strong>7/5に2セッション実施</strong>（Night Run 4.2km + Evening Run 14km）が気になる点。同日2部練はトータル18.2kmとなり、疲労蓄積リスクあり</td></tr>
+<tr><td>ロング走</td><td>Evening Run 14kmがロング走に相当。週間距離の49%と比率は高いが絶対距離としては問題なし</td></tr>
+</tbody></table>
+<p><strong>課題</strong>: 週後半（7/6以降）に向けて回復日を確保し、7/5の疲労をリセットしてから次のクオリティに臨むこと。</p>
 <hr>
 <h3>3. 個別アクティビティコメント</h3>
-<h4>✅ 2026-07-02（木）Night Run 10.3km・5:48/km・HR136</h4>
-<p><strong>良い点：</strong></p>
+<h4>🔵 2026-07-02（木）Night Run 10.3km ／ Avg 5:48/km ／ HR 136.5bpm</h4>
+<p><strong>良い点</strong></p>
 <ul>
-<li>ラップ1〜5（6:07〜5:46/km、HR120〜134）はイージーゾーンで良好な有酸素刺激。VDOT57のEペースは概ね5:50〜6:10/km相当であり、ほぼ適正範囲。</li>
-<li>後半のドリル系（ラップ8〜17：短い全力疾走＋歩きまたはジョグ）はR（レペティション）ゾーン相当の刺激として機能している。短距離での3:21〜3:59/kmは走経済性への良い刺激。</li>
+<li>Lap1〜5（6:07〜5:46/km、HR120〜134bpm）は典型的なEゾーン走で、有酸素基礎を丁寧に積めています。</li>
+<li>Lap8〜17にかけて60〜100m程度の短いダッシュ＋ウォーク回復を繰り返す <strong>Rゾーン相当のショートレペティション</strong> が含まれており（3:21〜3:59/km）、単純なイージー走に終わらない工夫が見られます。</li>
+<li>最後のLap18〜20で再びEペースに戻し、クールダウンができています。</li>
 </ul>
-<p><strong>改善点：</strong></p>
+<p><strong>改善点</strong></p>
 <ul>
-<li>ラップ6（4:49/km・HR163）がドリル前に突然混入しており、<strong>ペース変動の意図が不明確</strong>。IゾーンとEゾーンの切り替えが唐突。ウォームアップ→ドリル→クールダウンという明確な構造にするとより効果的。</li>
-</ul>
-<hr>
-<h4>⚠️ 2026-07-05（日）Evening Run 14.0km・4:44/km・HR159</h4>
-<p><strong>良い点：</strong></p>
-<ul>
-<li>ラップ1〜3（5:53〜5:32/km、HR127〜136）はイージーゾーンで丁寧なウォームアップ。</li>
-<li>ラップ7〜14（4:18〜4:02/km、HR171〜188）は明らかにI（インターバル）ゾーン以上の高強度。VDOT57のIペース目安は約4:00〜4:10/km。スピード自体は走力に見合っている。</li>
-</ul>
-<p><strong>改善点：</strong></p>
-<ul>
-<li><strong>問題の核心は「いつ・どういう状態で走ったか」</strong>。トレーニングレディネスが極めて低い状態で、最大HR198bpm（最大心拍数の上限に近い）まで達するような高強度走を行っており、<strong>オーバーリーチの典型パターン</strong>。</li>
-<li>ラップ5（5:19/km）→ラップ6（4:43/km）→ラップ7（4:18/km）と急激にペースアップしており、<strong>ウォームアップが終わりきらないうちに高強度に突入</strong>している。</li>
-<li>後半のラップ11〜12でやや落ちた後、ラップ13〜14でさらに加速しており、疲労した状態での無理な追い込みが見られる。HRmax 198はこの状況での上限値として<strong>心臓への過負荷リスク</strong>がある。</li>
+<li>Lap6（4:49/km、HR163.8bpm）が突然跳ね上がっています。Tゾーン以上の強度が1ラップだけ混入しており、意図的なものか確認が必要です。イージー走中に意図せず上がってしまったなら、ペースコントロールを意識してください。</li>
+<li>レペティション区間のHRは130〜153bpmと比較的低く、距離が短い（60〜100m）ため心肺系への刺激は限定的。スピードの刺激としては有効ですが、フォームドリル感覚でとらえるとよいでしょう。</li>
 </ul>
 <hr>
-<h4>⚠️ 2026-07-05（日）Night Run 4.2km・6:14/km・HR153</h4>
-<p><strong>良い点：</strong></p>
+<h4>🔴 2026-07-05（日）Evening Run 14.0km ／ Avg 4:44/km ／ HR 159.9bpm</h4>
+<p><strong>良い点</strong></p>
 <ul>
-<li>ペース自体はEゾーン相当で、クールダウン的な意図は理解できる。</li>
+<li>Lap1〜5でウォームアップ的にペースを上げていく構成は理にかなっています（5:53→5:19/km）。</li>
+<li>Lap6以降でテンポを上げ、Lap9〜10（4:04〜4:07/km、HR179〜180bpm）、Lap13〜14（4:02〜4:05/km、HR185〜188bpm）と <strong>Iゾーン（インターバル）相当の強度</strong>を持続しています。高強度への耐性と走力の高さが伺えます。</li>
 </ul>
-<p><strong>改善点：</strong></p>
+<p><strong>改善点</strong></p>
 <ul>
-<li>Evening Runの直後（同日）に実施しており、<strong>インターバル走直後の2部練は回復の観点から非推奨</strong>。</li>
-<li>ラップ3〜10（0.06〜0.11kmの細かいラップ・3:06〜9:43/kmの激しいペース変動）が含まれており、ゆっくり回復する意図とは矛盾した動きが散在している。この短い全力疾走は既に疲弊した筋肉への余分なストレスとなる。</li>
-<li>このランはクールダウンウォークに留めるべき状況だった。</li>
+<li><strong>最大HR198bpmは要注意</strong>。HRmax198とすれば、Lap13〜14のHR185〜188bpmはHRmaxの93〜95%に相当し、Iゾーン（97〜100%）の直下です。14kmという距離でこの強度を後半維持するのは、ダニエルズ的には「クオリティとロング走を同時にやっている」状態であり、オーバーリーチリスクが高い構成です。</li>
+<li>ペースが Lap1の5:53/km → Lap9の4:04/km と大幅に加速しており、<strong>意図的なビルドアップ走</strong>であれば構造として理解できますが、ターゲットペースの設定が不明確なまま走っている可能性も。あらかじめ「どのゾーンで何km走るか」を決めてから走ると練習の質が上がります。</li>
+<li><strong>同日2部練の後半セッションとして14km高強度</strong>は、累積疲労が非常に大きい。前のNight Run（4.2km）との合計は18.2kmかつ高強度混在。翌7/6は必ず完全休養またはEゾーンの軽いジョグ（5km以内）にとどめてください。</li>
+</ul>
+<hr>
+<h4>🟡 2026-07-05（日）Night Run 4.2km ／ Avg 6:14/km ／ HR 152.9bpm</h4>
+<p><strong>良い点</strong></p>
+<ul>
+<li>Lap1・11・12はEペース相当（5:49〜6:22/km）で、ウォームアップ・クールダウンとして機能しています。</li>
+</ul>
+<p><strong>改善点</strong></p>
+<ul>
+<li>Lap3〜10にわたって <strong>非常に短い高強度ダッシュ（60〜110m、2:54〜3:30/km）</strong> とウォーク・ジョグ回復を繰り返すレペティション形式が確認できます。このセッション自体は悪くないですが、<strong>この後すぐに14km高強度のEvening Runを実施したこと</strong>が問題です。</li>
+<li>Night RunとEvening Runの間隔が短い場合、疲労状態でクオリティセッションに突入することになります。高強度練習は単独で、前後に十分な回復を設けるのがダニエルズメソッドの基本です。</li>
+<li>Lap4・6・8のウォーク区間でHRが161〜169bpmまで上昇しており、回復が不十分なまま次のダッシュに入っている可能性があります。次回レペティションを行う際は、HR120bpm以下まで回復してから次のレップに入ることを推奨します。</li>
 </ul>
 <hr>
 <h3>4. ペース・心拍分析</h3>
-<h4>VDOT57相当のゾーン別ペース目安</h4>
+<h4>VDOT推定</h4>
+<p>Evening Runのデータから推定します。Lap9〜10（4:04〜4:07/km）でHR179〜180bpm、Lap13〜14（4:02〜4:05/km）でHR185〜188bpm、最大HR198bpmを記録しています。</p>
+<ul>
+<li>HRmax198bpmに対しLap13〜14はHRmax比93〜95%、ペース約4:03/km</li>
+<li>この強度・ペースを約4km持続できているとすると、<strong>VDOT推定値: 50〜52程度</strong></li>
+</ul>
 <table class="md-table"><tbody>
-<tr><th>ゾーン</th><th>ペース目安</th><th>今月の実走ペース</th><th>評価</th></tr>
-<tr><td>E（イージー）</td><td>5:50〜6:20/km</td><td>6:07〜6:14/km（一部）</td><td>✅ 適正</td></tr>
-<tr><td>M（マラソン）</td><td>5:05〜5:15/km</td><td>（未実施）</td><td>―</td></tr>
-<tr><td>T（テンポ）</td><td>4:30〜4:40/km</td><td>（一部該当）</td><td>△ 意図不明確</td></tr>
-<tr><td>I（インターバル）</td><td>4:00〜4:10/km</td><td>4:02〜4:18/km</td><td>✅ 速度は適正、しかし状態が問題</td></tr>
-<tr><td>R（レペティション）</td><td>3:30〜3:50/km</td><td>3:21〜3:59/km</td><td>✅ 速度は適正</td></tr>
+<tr><th>VDOT50〜52 の目安ペース</th><th></th></tr>
+<tr><td>E（イージー）</td><td>5:40〜6:15/km</td></tr>
+<tr><td>M（マラソンペース）</td><td>4:50〜5:05/km</td></tr>
+<tr><td>T（テンポ）</td><td>4:30〜4:40/km</td></tr>
+<tr><td>I（インターバル）</td><td>4:05〜4:15/km</td></tr>
+<tr><td>R（レペティション）</td><td>3:45〜3:55/km</td></tr>
 </tbody></table>
-<p><strong>心拍の観点：</strong></p>
-<ul>
-<li>Evening RunのHRmax 198bpmは、VDOT57のランナーとして心肺への相当な負荷を示している。最大心拍数が200前後と仮定すると<strong>HRmax近傍での持続走</strong>となり、レディネスが低い状態では回復に3〜5日必要なレベルの刺激。</li>
-<li>7/2 Night RunはHR120〜136帯（イージー）で序盤を過ごせており、有酸素基礎の構築には良い心拍管理。</li>
-</ul>
-<p><strong>負荷バランスの問題：</strong></p>
-<ul>
-<li>Garminが「ANAEROBIC_SHORTAGE（無酸素系の刺激不足）」と判定しているが、7/5 Evening RunのようなI〜最大強度走を連日行うことで解決しようとするのは誤り。7/2にもドリル系のR刺激を入れており、<strong>1週間の中で無酸素系の刺激は十分</strong>。GarminのANAEROBIC_SHORTAGEは状態の評価より機械的な積算のズレが出ている可能性があり、現状のSTRAINEDとの矛盾を考えると<strong>信号を鵜呑みにせず体の感覚を優先すべき</strong>。</li>
-</ul>
+<h4>ゾーン配分評価</h4>
+<table class="md-table"><tbody>
+<tr><th>セッション</th><th>主なゾーン</th><th>評価</th></tr>
+<tr><td>7/2 Night Run</td><td>E + R小</td><td>✅ 適切なEベース走＋軽いスピード刺激</td></tr>
+<tr><td>7/5 Night Run</td><td>E + R</td><td>⚠️ レペティション自体はOKだが直後の高強度が問題</td></tr>
+<tr><td>7/5 Evening Run</td><td>M→T→I</td><td>⚠️ ビルドアップでIゾーン到達、距離が長すぎ</td></tr>
+</tbody></table>
+<p><strong>総評</strong>: IゾーンとRゾーンの刺激は入っているものの、<strong>同日2部練で高強度を重ねる</strong>構成はダニエルズの「クオリティ週2回上限・翌日は必ず回復」原則から逸脱しています。現時点で週1回のクオリティセッションとして整理し、残りをEゾーンで丁寧に積み上げる方向が理想です。</p>
 <hr>
 <h3>5. 2026年8月の練習提案</h3>
-<h4>前提・設計方針</h4>
-<p><strong>Garmin生理指標から読み取る重要事項：</strong></p>
-<ul>
-<li>STRAINEDが月内4回、レディネス平均20、HRV UNBALANCED、睡眠5.5h、安静時HR上昇——これらはすべて<strong>オーバーリーチの複合的な警告</strong>。</li>
-<li>8月は「まず回復してからベースを積む」月とする。最初の1週間は強度を落とし、体を立て直してから段階的に質と量を上げる構成にする。</li>
-<li>8月のレースなし。月間200km・週平均40km（5週想定）を目標とするが、<strong>第1週は回復週として30kmに抑え、後半週で補う</strong>。</li>
-<li>ダニエルズの80/20原則に従い、クオリティセッション（T/I/R）は週2回上限、残りはE走。</li>
-<li>睡眠改善（目標7時間以上）が練習効果を最大化する最重要施策であることを強調する。</li>
-</ul>
-<h4>月間距離配分</h4>
+<h4>月間設計概要</h4>
 <table class="md-table"><tbody>
-<tr><th>週</th><th>期間</th><th>テーマ</th><th>目標km</th></tr>
-<tr><td>第1週</td><td>8/1〜8/3（3日間）</td><td>回復・再起動</td><td>20km</td></tr>
-<tr><td>第2週</td><td>8/4〜8/10</td><td>ベース構築</td><td>40km</td></tr>
-<tr><td>第3週</td><td>8/11〜8/17</td><td>有酸素強化</td><td>45km</td></tr>
-<tr><td>第4週</td><td>8/18〜8/24</td><td>質と量の統合</td><td>50km</td></tr>
-<tr><td>第5週</td><td>8/25〜8/31</td><td>仕上げ・維持</td><td>45km</td></tr>
-<tr><td><strong>合計</strong></td><td></td><td></td><td><strong>200km</strong></td></tr>
+<tr><th>項目</th><th>内容</th></tr>
+<tr><td>月間目標距離</td><td>200km</td></tr>
+<tr><td>週数</td><td>5週（8/1〜8/31）</td></tr>
+<tr><td>週間目標</td><td>約40km/週（均等配分）</td></tr>
+<tr><td>レース</td><td>なし</td></tr>
+<tr><td>推定VDOT</td><td>50〜52</td></tr>
+<tr><td>テーマ</td><td>有酸素ベース構築＋週2クオリティの習慣化</td></tr>
 </tbody></table>
-<blockquote class="md-quote">※第1週は8/1〜8/3の3日間のみカウント（8/4〜第2週開始）。残り4週で180km＝45km/週平均。</blockquote>
+<p><strong>8月の週別目標距離</strong></p>
+<table class="md-table"><tbody>
+<tr><th>週</th><th>期間</th><th>目標距離</th><th>テーマ</th></tr>
+<tr><td>第1週</td><td>8/1〜8/3</td><td>17km</td><td>7月疲労からのリフレッシュ（週またぎ3日のみ）</td></tr>
+<tr><td>第2週</td><td>8/4〜8/10</td><td>43km</td><td>ベース再構築</td></tr>
+<tr><td>第3週</td><td>8/11〜8/17</td><td>45km</td><td>有酸素強化＋T走導入</td></tr>
+<tr><td>第4週</td><td>8/18〜8/24</td><td>48km</td><td>VO2max刺激（I走追加）</td></tr>
+<tr><td>第5週</td><td>8/25〜8/31</td><td>47km</td><td>仕上げ・強度維持</td></tr>
+<tr><td><strong>合計</strong></td><td></td><td><strong>200km</strong></td><td></td></tr>
+</tbody></table>
+<blockquote class="md-quote">※ 第1週が3日のみのため短めに設定し、その分を第2〜5週で均等に補填しています。</blockquote>
 <hr>
-<h5>第1週（8/1〜8/3）：回復・再起動 目標20km</h5>
+<h5>第1週（8/1〜8/3）：リフレッシュ 目標17km</h5>
 <table class="md-table"><tbody>
 <tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
-<tr><td>土</td><td>8/1</td><td>E</td><td>8km</td><td>イージー 6:00〜6:20/km・HR140以下・会話できるペースを厳守</td></tr>
-<tr><td>日</td><td>8/2</td><td>REST</td><td>0km</td><td>完全休養または10〜15分の軽いストレッチのみ</td></tr>
-<tr><td>月</td><td>8/3</td><td>E</td><td>12km</td><td>イージーロング 6:00〜6:20/km・HR145以下・前半6kmで打ち切りも可</td></tr>
+<tr><td>土</td><td>8/1</td><td>E</td><td>6km</td><td>イージー 5:50〜6:10/km、HR140bpm以下でリラックス走</td></tr>
+<tr><td>日</td><td>8/2</td><td>REST</td><td>—</td><td>完全休養（7/5疲労のリセット）</td></tr>
+<tr><td>月</td><td>8/3</td><td>E</td><td>11km</td><td>イージー〜Mペース移行走 5:30〜6:00/km、後半2kmをMペース（4:55/km）で締める</td></tr>
 </tbody></table>
-<blockquote class="md-quote"><strong>週のポイント：</strong> レディネスが低い状態での8月スタートとなるため、最初の3日は強度を一切入れない。HR140〜145を上限として有酸素の基礎循環のみ。「走れる体を作り直す」週。</blockquote>
 <hr>
-<h5>第2週（8/4〜8/10）：ベース構築 目標40km</h5>
+<h5>第2週（8/4〜8/10）：ベース再構築 目標43km</h5>
 <table class="md-table"><tbody>
 <tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
-<tr><td>火</td><td>8/4</td><td>E</td><td>10km</td><td>イージー 5:50〜6:10/km・HR145以下</td></tr>
-<tr><td>水</td><td>8/5</td><td>REST</td><td>0km</td><td>完全休養</td></tr>
-<tr><td>木</td><td>8/6</td><td>T</td><td>10km</td><td>ウォームアップ2km(E)＋テンポ走5km(4:30〜4:40/km・HR160〜168)＋クールダウン3km(E)</td></tr>
-<tr><td>金</td><td>8/7</td><td>E</td><td>8km</td><td>回復ジョグ 6:10〜6:30/km・HR138以下</td></tr>
-<tr><td>土</td><td>8/8</td><td>REST</td><td>0km</td><td>完全休養</td></tr>
-<tr><td>日</td><td>8/9</td><td>E</td><td>12km</td><td>ロング走 5:55〜6:15/km・HR145以下・一定ペースで最後まで余裕を残す</td></tr>
-<tr><td>月</td><td>8/10</td><td>REST</td><td>0km</td><td>休養または軽いウォーク</td></tr>
+<tr><td>火</td><td>8/4</td><td>E</td><td>8km</td><td>イージー 5:50〜6:10/km、会話できるペースを徹底</td></tr>
+<tr><td>水</td><td>8/5</td><td>REST</td><td>—</td><td>完全休養</td></tr>
+<tr><td>木</td><td>8/6</td><td>T</td><td>10km</td><td>ウォームアップ2km(6:00/km) ＋ テンポ6km(4:35/km) ＋ クールダウン2km(6:00/km)</td></tr>
+<tr><td>金</td><td>8/7</td><td>E</td><td>8km</td><td>イージー 5:50〜6:15/km、木曜T走の回復</td></tr>
+<tr><td>土</td><td>8/8</td><td>REST</td><td>—</td><td>休養または軽いストレッチ・補強</td></tr>
+<tr><td>日</td><td>8/9</td><td>Long/E</td><td>17km</td><td>ロング走 5:50〜6:10/km、後半ペースダウンしてもOK・2時間以内を目安</td></tr>
+<tr><td>月</td><td>8/10</td><td>REST</td><td>—</td><td>完全休養</td></tr>
 </tbody></table>
-<blockquote class="md-quote"><strong>週のポイント：</strong> 初めてT走を入れるが1回のみ。テンポ走は「しんどいが維持できる」感覚を確認しながら、設定ペースに固執せず心拍を基準に判断する。ロング走はHR145厳守で有酸素基礎を積む。</blockquote>
+<p><strong>週計：43km</strong></p>
 <hr>
-<h5>第3週（8/11〜8/17）：有酸素強化 目標45km</h5>
+<h5>第3週（8/11〜8/17）：有酸素強化＋T走定着 目標45km</h5>
 <table class="md-table"><tbody>
 <tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
-<tr><td>火</td><td>8/11</td><td>E</td><td>10km</td><td>イージー 5:50〜6:10/km・HR145以下</td></tr>
-<tr><td>水</td><td>8/12</td><td>E</td><td>8km</td><td>回復ジョグ 6:10〜6:20/km</td></tr>
-<tr><td>木</td><td>8/13</td><td>I</td><td>12km</td><td>ウォームアップ3km(E)＋400m×6本(4:00〜4:10/km・レスト90秒ジョグ)＋クールダウン3km(E)</td></tr>
-<tr><td>金</td><td>8/14</td><td>E</td><td>8km</td><td>回復ジョグ 6:10〜6:30/km・HR138以下</td></tr>
-<tr><td>土</td><td>8/15</td><td>REST</td><td>0km</td><td>完全休養</td></tr>
-<tr><td>日</td><td>8/16</td><td>E</td><td>15km</td><td>ロング走 5:55〜6:15/km・HR148以下・距離は最長でも2時間30分まで</td></tr>
-<tr><td>月</td><td>8/17</td><td>REST</td><td>0km</td><td>休養</td></tr>
+<tr><td>火</td><td>8/11</td><td>E</td><td>9km</td><td>イージー 5:50〜6:10/km</td></tr>
+<tr><td>水</td><td>8/12</td><td>REST</td><td>—</td><td>休養</td></tr>
+<tr><td>木</td><td>8/13</td><td>T</td><td>11km</td><td>ウォームアップ2km ＋ テンポ7km(4:33/km) ＋ クールダウン2km ／ テンポ中HR165〜175bpm目安</td></tr>
+<tr><td>金</td><td>8/14</td><td>E</td><td>8km</td><td>イージー回復走 5:55〜6:15/km</td></tr>
+<tr><td>土</td><td>8/15</td><td>E</td><td>8km</td><td>イージー 5:50〜6:00/km ／ 後半2kmにR×4本（100m全力＋200mウォーク）を組み込んでもよい</td></tr>
+<tr><td>日</td><td>8/16</td><td>Long/E</td><td>19km</td><td>ロング走 5:50〜6:10/km・2時間15分以内</td></tr>
+<tr><td>月</td><td>8/17</td><td>REST</td><td>—</td><td>完全休養</td></tr>
 </tbody></table>
-<blockquote class="md-quote"><strong>週のポイント：</strong> 初のI走（400m×6本）を投入。インターバルはWU・CDを含めて総距離を管理し、本数を欲張らない。ロング走は15kmに延ばすが心拍管理を最優先。クオリティ2回（I+ロング走はEに近い性質）の構成。</blockquote>
+<p><strong>週計：45km</strong>（E 25km ＋ T 11km ＋ Long 19km）</p>
 <hr>
-<h5>第4週（8/18〜8/24）：質と量の統合 目標50km</h5>
+<h5>第4週（8/18〜8/24）：VO2max刺激導入 目標48km</h5>
 <table class="md-table"><tbody>
 <tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
-<tr><td>火</td><td>8/18</td><td>E</td><td>10km</td><td>イージー 5:50〜6:10/km</td></tr>
-<tr><td>水</td><td>8/19</td><td>T</td><td>12km</td><td>ウォームアップ2km(E)＋テンポ走7km(4:28〜4:38/km)＋クールダウン3km(E)</td></tr>
-<tr><td>木</td><td>8/20</td><td>E</td><td>10km</td><td>イージー 6:00〜6:10/km</td></tr>
-<tr><td>金</td><td>8/21</td><td>REST</td><td>0km</td><td>完全休養</td></tr>
-<tr><td>土</td><td>8/22</td><td>I</td><td>13km</td><td>ウォームアップ3km(E)＋1000m×5本(4:00〜4:08/km・レスト3分ジョグ)＋クールダウン3km(E)</td></tr>
-<tr><td>日</td><td>8/23</td><td>E</td><td>8km</td><td>回復ジョグ 6:10〜6:30/km</td></tr>
-<tr><td>月</td><td>8/24</td><td>E</td><td>7km</td><td>軽いイージー 6:10〜6:20/km</td></tr>
+<tr><td>火</td><td>8/19</td><td>E</td><td>10km</td><td>イージー 5:50〜6:10/km</td></tr>
+<tr><td>水</td><td>8/20</td><td>REST</td><td>—</td><td>休養</td></tr>
+<tr><td>木</td><td>8/21</td><td>I</td><td>11km</td><td>ウォームアップ2km ＋ I走：1000m×5本(4:10/km、レスト400mジョグ) ＋ クールダウン2km ／ HR190bpm超えたら強度を落とす</td></tr>
+<tr><td>金</td><td>8/22</td><td>E</td><td>8km</td><td>イージー回復 5:55〜6:15/km</td></tr>
+<tr><td>土</td><td>8/23</td><td>E＋T</td><td>11km</td><td>ウォームアップ2km ＋ Mペース走5km(4:55/km) ＋ テンポ2km(4:33/km) ＋ クールダウン2km</td></tr>
+<tr><td>日</td><td>8/24</td><td>Long/E</td><td>18km</td><td>ロング走 5:45〜6:05/km・2時間15分以内</td></tr>
+<tr><td>月</td><td>8/25</td><td>REST</td><td>—</td><td>休養</td></tr>
 </tbody></table>
-<blockquote class="md-quote"><strong>週のポイント：</strong> 最もボリュームの多い週。T走とI走の2セッションを平日・週末に分散し、間に必ずEまたは休養を挟む。1000m×5本はVDOT57の4:00〜4:08/kmが目安。翌日の回復ジョグは省略不可。</blockquote>
+<blockquote class="md-quote">※ 8/18（月）は第3週ロング走翌日のため休養扱いとし、第4週実質スタートは8/19（火）から。</blockquote>
+<p><strong>週計：48km</strong>（E 18km ＋ I 11km ＋ E＋T 11km ＋ Long 18km）</p>
 <hr>
-<h5>第5週（8/25〜8/31）：仕上げ・維持 目標45km</h5>
+<h5>第5週（8/25〜8/31）：仕上げ・強度維持 目標47km</h5>
 <table class="md-table"><tbody>
 <tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
-<tr><td>火</td><td>8/25</td><td>E</td><td>10km</td><td>イージー 5:50〜6:10/km</td></tr>
-<tr><td>水</td><td>8/26</td><td>T</td><td>11km</td><td>ウォームアップ2km(E)＋テンポ走6km(4:28〜4:38/km)＋クールダウン3km(E)</td></tr>
-<tr><td>木</td><td>8/27</td><td>E</td><td>10km</td><td>イージー 6:00〜6:10/km</td></tr>
-<tr><td>金</td><td>8/28</td><td>REST</td><td>0km</td><td>完全休養</td></tr>
-<tr><td>土</td><td>8/29</td><td>E</td><td>16km</td><td>ロング走 5:55〜6:10/km・HR150以下・月内最長距離</td></tr>
-<tr><td>日</td><td>8/30</td><td>E</td><td>8km</td><td>回復ジョグ 6:10〜6:20/km</td></tr>
-<tr><td>月</td><td>8/31</td><td>REST</td><td>0km</td><td>月末休養・9月の計画を立てる日に</td></tr>
+<tr><td>火</td><td>8/26</td><td>E</td><td>9km</td><td>イージー 5:50〜6:10/km</td></tr>
+<tr><td>水</td><td>8/27</td><td>REST</td><td>—</td><td>休養</td></tr>
+<tr><td>木</td><td>8/28</td><td>T</td><td>11km</td><td>ウォームアップ2km ＋ テンポ7km(4:30/km) ＋ クールダウン2km ／ 8月最高強度テンポ</td></tr>
+<tr><td>金</td><td>8/29</td><td>E</td><td>8km</td><td>イージー回復走</td></tr>
+<tr><td>土</td><td>8/30</td><td>E</td><td>8km</td><td>イージー 5:45〜6:00/km ＋ R×4〜5本（100m全力）</td></tr>
+<tr><td>日</td><td>8/31</td><td>Long/E</td><td>19km</td><td>月間締めロング走 5:45〜6:05/km</td></tr>
+<tr><td>月</td><td>—</td><td>—</td><td>—</td><td>（9月第1週へ）</td></tr>
 </tbody></table>
-<blockquote class="md-quote"><strong>週のポイント：</strong> 高強度（I走）を外してT走1本とロング走で締める。ロング走16kmは月内最長で有酸素基礎の仕上げ。月を通じた疲労の蓄積を確認し、9月への土台作りで終える。</blockquote>
+<blockquote class="md-quote">※ 8/25（月）は前週ロング走翌日のため休養扱い。</blockquote>
+<p><strong>週計：47km</strong></p>
 <hr>
-<h4>8月の総合的な注意点</h4>
+<h4>月間合計確認</h4>
 <table class="md-table"><tbody>
-<tr><th>項目</th><th>目標・基準</th></tr>
-<tr><td>週クオリティ回数</td><td>最大2回（T or I）。STRAINEDが続くなら1回に減らす</td></tr>
-<tr><td>ロング走上限</td><td>週間距離の30%以内、かつ2時間30分を超えない</td></tr>
-<tr><td>同日2部練</td><td><strong>禁止</strong>（7月5日の失敗を繰り返さない）</td></tr>
-<tr><td>連日高強度</td><td><strong>禁止</strong>（高強度の翌日は必ずE走または休養）</td></tr>
-<tr><td>睡眠</td><td>最優先で7時間以上を確保。これが最大のパフォーマンス改善策</td></tr>
-<tr><td>HRVチェック</td><td>UNBALANCED継続中はその日のメニューをE走にダウングレード</td></tr>
-<tr><td>レディネス</td><td>40以下の日はクオリティ走を翌日以降に延期</td></tr>
+<tr><th>週</th><th>距離</th></tr>
+<tr><td>第1週（8/1〜8/3）</td><td>17km</td></tr>
+<tr><td>第2週（8/4〜8/10）</td><td>43km</td></tr>
+<tr><td>第3週（8/11〜8/17）</td><td>45km</td></tr>
+<tr><td>第4週（8/18〜8/24）</td><td>48km</td></tr>
+<tr><td>第5週（8/25〜8/31）</td><td>47km</td></tr>
+<tr><td><strong>合計</strong></td><td><strong>200km</strong> ✅</td></tr>
 </tbody></table>
-<p><strong>最後に一言：</strong> 現在のSTRAINED状態は「頑張りすぎ」のサインです。8月は量を積むことと同じくらい、「しっかり回復して次の練習に備える」ことを練習の一部として捉えてください。睡眠7時間の確保だけで、同じ練習をしてもVO2maxと疲労回復が大きく改善する可能性があります。走ることと同じくらい、眠ることに投資してください。</p></div>
+<hr>
+<h4>8月の重点ポイント</h4>
+<p>1. <strong>クオリティは週2回まで、連日禁止</strong>: 高強度（T・I）の翌日は必ずEまたは完全休養</p>
+<p>2. <strong>同日2部練はしない</strong>: 7月5日の反省を活かし、1日1セッションを基本とする</p>
+<p>3. <strong>ロング走は毎週</strong>: 15〜19kmを週1回、ペースはE（5:45〜6:10/km）に徹する</p>
+<p>4. <strong>テンポ走を軸に</strong>: 月前半はTゾーン（4:30〜4:40/km）を固め、第4週でI走1回を試す</p>
+<p>5. <strong>HR管理</strong>: イージー走はHR140〜150bpm以下を厳守、Tゾーンは165〜175bpm、Iゾーンは180〜190bpm目安</p>
+<p>7月の走り出しは良いスタートです。特に多様な強度の刺激を入れている点は評価できます。8月は「強度の整理と回復の徹底」をテーマに、着実にベースを積み上げていきましょう！💪</p></div>
   </div>
 
   
@@ -976,21 +987,11 @@
             未実施（予定: インターバル 8km）
           </td>
         </tr>
-        <tr style="">
-          <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">❌</td>
-          <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">土</td>
-          <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            ロング走 <span style="font-size:11px;font-weight:400;color:#a0aec0">15km</span>
-          </td>
-          <td style="font-size:12px;color:#ef4444;padding:8px 8px;line-height:1.6">
-            未実施（予定: Tテンポ走 14.0km）
-          </td>
-        </tr>
         <tr style="background:#fffbeb;">
           <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">🔄</td>
           <td style="width:28px;font-weight:700;color:#fc4c02;font-size:13px;padding:8px 4px">日</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            Eロング走 <span style="font-size:11px;font-weight:400;color:#a0aec0">8.0km</span>
+            ロング走 <span style="font-size:11px;font-weight:400;color:#a0aec0">15km</span>
           </td>
           <td style="font-size:12px;color:#3b82f6;padding:8px 8px;line-height:1.6">
             📏 ロング走予定 → テンポ走 18.2km / 4:44/km。ロングは来週補填を。<span style="font-size:11px;color:#718096;margin-left:6px">(4.2km/6:14/km + 14.0km/4:44/km)</span>
@@ -998,12 +999,12 @@
         </tr></tbody>
       </table>
       <div style="height:8px;background:#e2e8f0;border-radius:4px;margin-bottom:8px;overflow:hidden">
-        <div style="height:8px;background:#22c55e;border-radius:4px;width:100%"></div>
+        <div style="height:8px;background:#3b82f6;border-radius:4px;width:59%"></div>
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#718096">
-        <span>週実績: <strong style="color:#2d3748">40.9km</strong></span>
-        <span>週目標: <strong>40.0km</strong></span>
-        <span style="color:#22c55e;font-weight:700">✅ 週目標達成！</span>
+        <span>週実績: <strong style="color:#2d3748">28.5km</strong></span>
+        <span>週目標: <strong>48.0km</strong></span>
+        <span style="color:#3b82f6;font-weight:700">残り 19.5km</span>
       </div>
     </div>
 
