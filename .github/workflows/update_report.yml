@@ -1,11 +1,19 @@
 name: 🏃 Update Strava Report
 
 on:
-  workflow_dispatch:   # 手動実行のみ（Garmin なしのフォールバック生成）
-  # 日次の公開はローカルの publish.sh が担当（Garmin の回復・負荷を反映するため）。
-  # Actions の cron はローカル版を上書きしてしまうので停止。必要なら下行を戻す。
-  # schedule:
-  #   - cron: '0 14 * * *'   # 毎日 UTC 14:00 = JST 23:00
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "公開ガードを無視して強制的に公開する"
+        type: boolean
+        default: false
+  # Actionsは「間引かれた安全網」として稼働する。日次の公開は基本的にローカルの
+  # publish.sh が担当（Garmin の回復・負荷を反映するため）。Actionsは
+  # check_publish_guard.py の判定に従い、Garmin反映済みの最近の公開を
+  # 上書きしないようスキップしつつ、PCが動いていない期間が続く場合は
+  # フレッシュネスの安全網として公開する。
+  schedule:
+    - cron: '0 */4 * * *'   # 4時間おき（ガードが実際の公開要否を判断）
 
 concurrency:
   group: strava-report
@@ -30,7 +38,19 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Check publish freshness guard
+        id: guard
+        env:
+          FORCE_PUBLISH: ${{ inputs.force_publish }}
+        run: |
+          if python3 check_publish_guard.py; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Strava tokens
+        if: steps.guard.outputs.should_publish == 'true'
         env:
           STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
@@ -70,6 +90,7 @@ jobs:
           EOF
 
       - name: Update STRAVA_REFRESH_TOKEN secret
+        if: steps.guard.outputs.should_publish == 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
@@ -78,9 +99,11 @@ jobs:
           echo "✓ Refresh token updated"
 
       - name: Fetch Strava data
+        if: steps.guard.outputs.should_publish == 'true'
         run: python3 strava_fetch.py
 
       - name: AI coaching (Claude)
+        if: steps.guard.outputs.should_publish == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -91,17 +114,49 @@ jobs:
           fi
 
       - name: Generate HTML report
+        if: steps.guard.outputs.should_publish == 'true'
         env:
           REPORT_EDITION: online
         run: python3 report_html.py
 
+      - name: Re-check guard before push
+        id: guard2
+        if: steps.guard.outputs.should_publish == 'true'
+        env:
+          FORCE_PUBLISH: ${{ inputs.force_publish }}
+        run: |
+          git fetch origin main
+          git show origin/main:publish_meta.json > /tmp/remote_meta.json 2>/dev/null || echo '{}' > /tmp/remote_meta.json
+          if python3 check_publish_guard.py --meta-file /tmp/remote_meta.json; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy to GitHub Pages
+        if: steps.guard2.outputs.should_publish == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # HTML（当月＋月別アーカイブ）、コーチング MD、pbs.json / races.json をコミット
-          git add index.html 20*.html coaching_report_*.md coach_cache_*.json pbs.json races.json
+          # HTML（当月＋月別アーカイブ）、PBデータ、公開メタ情報をコミット
+          # （coaching_report_*.md / coach_cache_*.json は非公開方針のため publish.sh と揃えて除外）
+          git add index.html 20*.html pbs.json races.json publish_meta.json
+
+          push_with_retry() {
+            local attempt=1 max=5
+            while true; do
+              git pull --rebase -X theirs origin main && git push && return 0
+              git rebase --abort >/dev/null 2>&1 || true
+              if [ "$attempt" -ge "$max" ]; then
+                echo "❌ push failed after $attempt attempts" >&2
+                return 1
+              fi
+              echo "⚠️ push 競合、再試行 ($attempt/$max)…" >&2
+              sleep $(( (RANDOM % 4) + 2 ))
+              attempt=$((attempt+1))
+            done
+          }
+
           git diff --staged --quiet || git commit -m "Update report $(date '+%Y-%m-%d %H:%M') JST"
-          git pull --rebase -X theirs origin main
-          git push
+          push_with_retry
           echo "🌐 Deployed → https://casa2024takayama.github.io/strava-report/"
