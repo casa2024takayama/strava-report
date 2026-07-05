@@ -29,16 +29,30 @@ fi
 echo "▶ Step 3: オンライン版 HTML 生成"
 REPORT_EDITION=online "$PYTHON" report_html.py
 
+push_with_retry() {
+  local attempt=1 max=5
+  while true; do
+    git pull --rebase -X theirs origin main && git push && return 0
+    git rebase --abort >/dev/null 2>&1 || true
+    if [ "$attempt" -ge "$max" ]; then
+      echo "❌ push failed after $attempt attempts" >&2
+      return 1
+    fi
+    echo "⚠️ push 競合、再試行 ($attempt/$max)…" >&2
+    sleep $(( (RANDOM % 4) + 2 ))
+    attempt=$((attempt+1))
+  done
+}
+
 echo "▶ Step 4: 公開（push）"
 # ※ garmin_daily.csv（生の日次健康データ）は意図的に add しない＝非公開
 # coaching_report_*.md / coach_cache_*.json は公開しない（Garmin月次集計を含むため）。
 # 講評文は index.html に焼き込み済みなので、公開はHTMLとPBデータのみで十分。
-git add index.html 20*.html pbs.json races.json
+git add index.html 20*.html pbs.json races.json publish_meta.json
 if git diff --staged --quiet; then
   echo "（変更なし — push スキップ）"
 else
   git commit -m "Update report (Garmin/Claude) $(date '+%Y-%m-%d %H:%M JST')"
-  git pull --rebase -X theirs origin main
-  git push
+  push_with_retry
   echo "🌐 公開完了 → https://casa2024takayama.github.io/strava-report/"
 fi

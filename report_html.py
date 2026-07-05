@@ -9,7 +9,7 @@ from __future__ import annotations
 import csv, json, os, glob, re
 import html as html_module
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import calendar as _cal_mod
 
 from coach_common import (
@@ -2516,4 +2516,15 @@ with open(OUTPUT, "w", encoding="utf-8") as f:
 
 print(f"✓ {ARCHIVE_FILE} を生成しました（月別アーカイブ）")
 print(f"✓ {OUTPUT} を更新しました（当月）")
+
+if REPORT_EDITION == "online":
+    publish_meta = {
+        "published_by": "actions" if os.environ.get("GITHUB_ACTIONS") == "true" else "local",
+        "published_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "garmin": bool(_g_updated),
+        "garmin_updated_at": _g_updated.isoformat() if _g_updated else None,
+    }
+    with open("publish_meta.json", "w", encoding="utf-8") as f:
+        json.dump(publish_meta, f, ensure_ascii=False, indent=2)
+    print(f"✓ publish_meta.json 更新（published_by={publish_meta['published_by']}, garmin={publish_meta['garmin']}）")
 print(f"  → open \"{OUTPUT}\"")
