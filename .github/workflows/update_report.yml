@@ -157,6 +157,6 @@ jobs:
             done
           }
 
-          git diff --staged --quiet || git commit -m "Update report $(date '+%Y-%m-%d %H:%M') JST"
+          git diff --staged --quiet || git commit -m "Update report $(TZ='Asia/Tokyo' date '+%Y-%m-%d %H:%M JST')"
           push_with_retry
           echo "🌐 Deployed → https://casa2024takayama.github.io/strava-report/"
