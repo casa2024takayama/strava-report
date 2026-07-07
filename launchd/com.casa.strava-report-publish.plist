@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Garmin 入りの「公開版」を毎晩 GitHub Pages へ自動公開する launchd テンプレート。
+  publish.sh（Strava取得 → AIコーチング → online版HTML生成 → git push）を
+  毎日 23:00（Macのローカル時刻＝JST）に実行する。
+
+  ※ publish.sh は既存の garmin_daily.csv を使う（Garmin 取得自体は行わない）。
+    Garmin を最新にしたい場合はスマホの「Garmin 取得」ボタン等で更新しておく。
+  ※ 公開の鮮度ガード（check_publish_guard.py）と協調する：この夜間公開が
+    Garmin 入りとして記録され、Actions の cron は 20h 先送りする。
+
+  セットアップ手順（Mac で一度だけ）:
+    1. 下の /REPLACE/WITH/YOUR/REPO/PATH を実際のリポジトリパスに置換する（2箇所）。
+       例: /Users/takayama_masaaki/Projects/strava-report
+    2. ~/Library/LaunchAgents/ にコピーして読み込む:
+         cp launchd/com.casa.strava-report-publish.plist ~/Library/LaunchAgents/
+         launchctl load ~/Library/LaunchAgents/com.casa.strava-report-publish.plist
+    3. ログは /tmp/strava-report-publish.log に出る。
+    4. すぐ試したいとき:  launchctl start com.casa.strava-report-publish
+
+  停止:
+    launchctl unload ~/Library/LaunchAgents/com.casa.strava-report-publish.plist
+
+  注意: git push には認証が要る（HTTPS+キーチェーン or SSH）。ログイン中の
+  LaunchAgent はログインキーチェーンにアクセスできるため通常は動くが、初回実行後に
+  /tmp/strava-report-publish.log で push 成功を必ず確認すること。
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.casa.strava-report-publish</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/REPLACE/WITH/YOUR/REPO/PATH/publish.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/REPLACE/WITH/YOUR/REPO/PATH</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>23</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/strava-report-publish.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/strava-report-publish.log</string>
+</dict>
+</plist>
