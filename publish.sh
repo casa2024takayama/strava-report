@@ -27,6 +27,13 @@ else
 fi
 
 echo "▶ Step 3: オンライン版 HTML 生成"
+# 「ローカル版」リンクをスマホから開けるよう、Tailscale IP を自動検出して埋め込む
+# （未設定時のみ。REPORT_LOCAL_URL を明示指定していればそれを優先）。
+if [ -z "${REPORT_LOCAL_URL:-}" ] && command -v tailscale >/dev/null 2>&1; then
+  TSIP="$(tailscale ip -4 2>/dev/null | head -1 | tr -d '[:space:]')"
+  [ -n "$TSIP" ] && export REPORT_LOCAL_URL="http://$TSIP:8766/index.html" \
+    && echo "  ローカル版リンク: $REPORT_LOCAL_URL"
+fi
 REPORT_EDITION=online "$PYTHON" report_html.py
 
 push_with_retry() {

@@ -57,7 +57,9 @@ COACH_MD = f"coaching_report_{YYYYMM}.md"
 GITHUB_REPO = "casa2024takayama/strava-report"
 GITHUB_WORKFLOW_URL = f"https://github.com/{GITHUB_REPO}/actions/workflows/update_report.yml"
 GITHUB_PAGES_URL = "https://casa2024takayama.github.io/strava-report/"
-LOCAL_REPORT_URL = "http://127.0.0.1:8766/index.html"
+# 「ローカル版」リンク先。スマホから開けるよう REPORT_LOCAL_URL（Tailscale IP 等）で
+# 上書き可能（publish.sh が tailscale ip から自動設定）。既定はMac本体からの 127.0.0.1。
+LOCAL_REPORT_URL = os.environ.get("REPORT_LOCAL_URL", "http://127.0.0.1:8766/index.html")
 
 
 def detect_report_edition() -> str:
