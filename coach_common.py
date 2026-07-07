@@ -10,6 +10,18 @@ import calendar
 from collections import defaultdict
 from datetime import date, datetime
 
+# ── .env 読み込み（launchd 等の最小環境でも API キーを拾えるように）──────────
+# coach_claude/gemini/ollama は本モジュールを import するため、ここで一度読めば
+# 全 backend が .env の ANTHROPIC_API_KEY 等を利用できる（既存の os.environ 優先）。
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path, encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+
 MONTHLY_DISTANCE_GOAL_KM = 200
 
 SYSTEM_PROMPT = """あなたはダニエルズのランニングフォーミュラ（Jack Daniels' Running Formula）に精通した、
