@@ -353,6 +353,11 @@ class ReportHandler(SimpleHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         pass
 
+    def end_headers(self) -> None:
+        # ブラウザキャッシュで古いレポートが表示されるのを防ぐ（ローカル閲覧用途）
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        super().end_headers()
+
     def _send_json(self, code: int, payload: dict) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
