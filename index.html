@@ -297,9 +297,9 @@
         <h1>🏃 ランニングレポート</h1>
       </a>
       <p>2026年7月 — Strava ランニングレポート</p>
-      <p class="last-fetch ok" id="last-fetch-msg">✓ 最終データ取得: 2026-07-07 10:44:10</p>
-      <p class="last-garmin none" id="last-garmin-msg">Garmin 未取得 — garmin_fetch.py を実行</p>
-      <p class="last-coach ok" id="last-coach-msg">✓ 最終 AI 評価: 2026-07-07 10:45:55（claude-sonnet-4-6（Claude API））</p>
+      <p class="last-fetch ok" id="last-fetch-msg">✓ 最終データ取得: 2026-07-07 21:33:12</p>
+      <p class="last-garmin ok" id="last-garmin-msg">✓ Garmin 取得: 2026-07-06 23:00:32</p>
+      <p class="last-coach ok" id="last-coach-msg">✓ 最終 AI 評価: 2026-07-07 13:33:50（claude-sonnet-4-6（Claude API））</p>
     </div>
     <div class="header-actions" id="update-panel">
       <button type="button" class="btn-update" id="btn-update">🔄 データ更新</button>
@@ -391,8 +391,32 @@
 </ul>
 <p><strong>改善点</strong></p>
 <ul>
-<li>同日夜に高強度の Evening Run を終えた後、さらにインターバル刺激を入れることは<strong>オーバーリーチのリスクが高い</strong>です。疲弊した筋肉でのスプリントはフォーム崩壊・怪我リスクにもつながります。</li>
-<li>この 4.2km は「翌日に回す」か「Evening Run のクールダウンとして完全Eゾーン（HR 130以下）」に留めることを推奨します。</li>
+<li>Lap6（4:49/km・HR 163.8bpm）がウォームアップ中に突然現れる。ここだけTゾーン強度に跳ね上がっており、インターバルセットに入る前に高強度になっている。ウォームアップは一貫してHR 130bpm以下を維持するとより効果的です</li>
+</ul>
+<hr>
+<h4>📍 2026-07-05（日）Evening Run ／ 14.0km ／ 4:44/km ／ HR 159.9bpm</h4>
+<p><strong>構成の読み取り</strong></p>
+<p>Lap1〜5（5:19〜5:53/km・HR 127〜145bpm）がウォームアップ的なジョグ、Lap6（4:43/km・HR 157bpm）から急加速し、Lap7〜10（4:04〜4:18/km・HR 171〜180bpm）が高強度区間、Lap11〜12が小休止、Lap13〜14（4:02〜4:05/km・HR 185〜188bpm）がさらに高強度という構成です。</p>
+<p><strong>良い点</strong></p>
+<ul>
+<li>Lap13〜14のHR 185〜188bpmはほぼHRmax（最大HR 198bpmの95〜97%）で、IゾーンかつVO2max刺激として質の高いランができている</li>
+<li>14kmという距離でこの強度を維持できるのは、現在のVO2max 57.2に対して十分な走力がある証拠</li>
+</ul>
+<p><strong>改善点（重大）</strong></p>
+<ul>
+<li><strong>このランを Sleep Score 54・レディネス 1〜16 の状態で実施したことが最大の問題</strong>。強度そのものは悪くないですが、身体の準備が全く整っていない状態での高強度走は、適応効果が得られないどころか回復をさらに遅らせます</li>
+<li>ウォームアップ5kmからいきなりLap6で急加速するペース変化が急すぎる。Lap1〜5（Eゾーン）→ Lap6（一気にTゾーン）という移行は関節・筋腱へのストレスが大きい。段階的に上げることを意識してください</li>
+<li><strong>同日の Night Run（後述）との組み合わせは過剰</strong>。14km高強度走の直後に追加ランは完全に回復の観点から逸脱しています</li>
+</ul>
+<hr>
+<h4>📍 2026-07-05（日）Night Run ／ 4.2km ／ 6:14/km ／ HR 152.9bpm</h4>
+<p><strong>構成の読み取り</strong></p>
+<p>Lap1〜2（6:18〜6:33/km）がジョグ、Lap3〜10がショートインターバル（約60〜110m×4セット）、Lap11〜12が通常ジョグ、Lap13でクールダウン。</p>
+<p><strong>懸念点</strong></p>
+<ul>
+<li>Evening Run から数時間後の実施と推定されます。HR がEジョグ区間でもLap10に169bpmを記録しており、<strong>前走の疲労が抜けていない状態が心拍に明確に出ています</strong></li>
+<li>インターバル区間（Lap3: 3:30、Lap5: 3:17、Lap7: 3:06、Lap9: 2:54）のペースはRゾーン相当ですが、回復区間のHRが165〜169bpmまで上昇しており、回復不完全なままインターバルを繰り返している状態です</li>
+<li>「練習のための練習」になるリスクが高い。今後は<strong>同日2回走は原則禁止</strong>とすることを強く推奨します</li>
 </ul>
 <hr>
 <h3>4. ペース・心拍分析</h3>
@@ -522,6 +546,121 @@
   </div>
 
   
+  <div class="section ai-plan-section" id="ai-month-plan">
+    <h2>🤖 2026年6月 AIコーチからの2026年7月練習提案</h2>
+    <p class="ai-plan-week-note">📅 今週の日次メニューは下の「今週の練習メニュー」に <strong>第2週（7/7〜7/13）：登坂特化・有酸素強化 目標48km</strong> として反映済みです。</p>    <div class="ai-coach-body ai-plan-body"><h4>月間方針</h4>
+<p>7月の最大イベントは <strong>7/24（金）富士登山競走 頂上コース（21.4km・累積標高 3,000m 超）</strong> です。6月の慢性疲労を持ち越した状態でのぞむレースのため、以下の方針を軸にします。</p>
+<p>1. <strong>第1〜2週</strong>：6月の疲労リセット＋富士登山に向けた登坂・下り筋の特化強化</p>
+<p>2. <strong>第3週</strong>：テーパー（量を落とし神経系の鋭さを維持）</p>
+<p>3. <strong>第4週</strong>：レース（7/24）＋直後回復</p>
+<p>4. <strong>第5週</strong>：レース後リカバリー</p>
+<p><strong>月間距離配分</strong>（5週・合計 200km）</p>
+<table class="md-table"><tbody>
+<tr><th>週</th><th>期間</th><th>テーマ</th><th>目標距離</th></tr>
+<tr><td>第1週</td><td>7/1〜7/6</td><td>疲労リセット＋登坂導入</td><td>45km</td></tr>
+<tr><td>第2週</td><td>7/7〜7/13</td><td>登坂特化・有酸素強化</td><td>48km</td></tr>
+<tr><td>第3週</td><td>7/14〜7/20</td><td>テーパー開始</td><td>38km</td></tr>
+<tr><td>第4週</td><td>7/21〜7/27</td><td>レース週（7/24 富士登山競走）</td><td>40km（レース 21.4km 含む）</td></tr>
+<tr><td>第5週</td><td>7/28〜7/31</td><td>レース後回復</td><td>29km</td></tr>
+<tr><td><strong>合計</strong></td><td></td><td></td><td><strong>200km</strong></td></tr>
+</tbody></table>
+<hr>
+<h5>第1週（7/1〜7/6）：疲労リセット＋登坂導入 目標45km</h5>
+<table class="md-table"><tbody>
+<tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
+<tr><td>水</td><td>7/1</td><td>E</td><td>8km</td><td>完全イージー 6:00〜6:30/km・HR 130以下。6月疲労のリセット日</td></tr>
+<tr><td>木</td><td>7/2</td><td>休養</td><td>—</td><td>完全休養 or ストレッチ・体幹</td></tr>
+<tr><td>金</td><td>7/3</td><td>E</td><td>10km</td><td>イージー 5:50〜6:10/km・HR 135以下。平坦コース</td></tr>
+<tr><td>土</td><td>7/4</td><td>E+坂</td><td>14km</td><td>前半8km イージー（6:00/km）＋後半6km に傾斜のある坂道往復を組み込む（歩行でも可）。獲得標高 150m 以上を目標</td></tr>
+<tr><td>日</td><td>7/5</td><td>ロング E</td><td>13km</td><td>ロング走（E ゾーン厳守）5:30〜6:00/km・HR 140以下。途中で足が重くなったら即ペースダウン</td></tr>
+<tr><td>月</td><td>7/6</td><td>休養</td><td>—</td><td>完全休養</td></tr>
+</tbody></table>
+<blockquote class="md-quote">※ 7/1（水）スタートのため月〜火はなし。週合計 <strong>45km</strong>。</blockquote>
+<hr>
+<h5>第2週（7/7〜7/13）：登坂特化・有酸素強化 目標48km</h5>
+<table class="md-table"><tbody>
+<tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
+<tr><td>月</td><td>7/7</td><td>E</td><td>8km</td><td>イージー回復走 6:00/km・HR 130以下</td></tr>
+<tr><td>火</td><td>7/8</td><td>休養</td><td>—</td><td>完全休養 or ヨガ・ストレッチ</td></tr>
+<tr><td>水</td><td>7/9</td><td>E+坂</td><td>12km</td><td>坂道多めのコース。上り区間は「E〜M の努力感」で歩かず通す。下りは大腿前面・膝に意識を置きゆっくり</td></tr>
+<tr><td>木</td><td>7/10</td><td>E</td><td>8km</td><td>イージー 6:00〜6:20/km</td></tr>
+<tr><td>金</td><td>7/11</td><td>T</td><td>12km</td><td><strong>テンポ走セッション</strong>：WU 3km（E）→ T ペース 4:20〜4:35/km を 3km×2本（間 90 秒 jog）→ CD 3km（E）。HR 157〜167 程度を目安</td></tr>
+<tr><td>土</td><td>7/12</td><td>E</td><td>8km</td><td>軽め回復走 6:00〜6:20/km</td></tr>
+<tr><td>日</td><td>7/13</td><td>ロング E+坂</td><td>—</td><td><strong>登山的ロング 18km</strong>：できれば標高差 300〜500m のコース（なければ坂道ビルドを繰り返す公園コース）。ペースは 5:30〜6:30/km で調整・HR 150 以下厳守。<strong>富士本番の「歩行混じり」もここで試す</strong></td></tr>
+</tbody></table>
+<p>週合計 <strong>48km</strong>（WU/CD 込み）</p>
+<blockquote class="md-quote">🏔️ <strong>富士登山競走に向けた特記事項</strong></blockquote>
+<blockquote class="md-quote">- 本番は 21.4km・累積標高 約 3,000m（最大傾斜 30〜40°区間あり）</blockquote>
+<blockquote class="md-quote">- 「走れない勾配は歩く」判断を練習で体に覚えさせること</blockquote>
+<blockquote class="md-quote">- 下りは大腿四頭筋への偏心性収縮が非常に強い。下り練習後は 48〜72h の回復を確保</blockquote>
+<blockquote class="md-quote">- 高所（3776m）対策として、前日の標高順化（5合目泊・もしくは早朝入り）を推奨</blockquote>
+<hr>
+<h5>第3週（7/14〜7/20）：テーパー開始 目標38km</h5>
+<table class="md-table"><tbody>
+<tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
+<tr><td>月</td><td>7/14</td><td>休養</td><td>—</td><td>完全休養</td></tr>
+<tr><td>火</td><td>7/15</td><td>E</td><td>8km</td><td>イージー 6:00/km・軽く脚を動かす</td></tr>
+<tr><td>水</td><td>7/16</td><td>T</td><td>10km</td><td>WU 3km → T ペース 4:20〜4:35/km を 2km×2本（2&#x27; jog）→ CD 3km。量を先週より減らし質を維持</td></tr>
+<tr><td>木</td><td>7/17</td><td>E</td><td>8km</td><td>イージー 6:00〜6:20/km</td></tr>
+<tr><td>金</td><td>7/18</td><td>E</td><td>6km</td><td>軽め 6:10〜6:30/km。脚のフレッシュさ優先</td></tr>
+<tr><td>土</td><td>7/19</td><td>E</td><td>6km</td><td>軽め。装備（ザック・トレランシューズ等）の最終フィット確認も兼ねた軽い試走</td></tr>
+<tr><td>日</td><td>7/20</td><td>休養</td><td>—</td><td>完全休養。前日の充分な睡眠を確保すること</td></tr>
+</tbody></table>
+<p>週合計 <strong>38km</strong></p>
+<blockquote class="md-quote">⚠️ テーパー週の注意点</blockquote>
+<blockquote class="md-quote">- 7/16 の T セッションを最後のクオリティとし、7/17 以降はすべて E 以下</blockquote>
+<blockquote class="md-quote">- 新しい食事・補給を試さない。レース本番に使うジェル・塩タブレットを確認</blockquote>
+<blockquote class="md-quote">- 水分・塩分補給の練習（夏の暑熱環境下でのランニング）を7/16 以前の練習で実施しておく</blockquote>
+<hr>
+<h5>第4週（7/21〜7/27）：レース週（富士登山競走） 目標40km</h5>
+<table class="md-table"><tbody>
+<tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
+<tr><td>月</td><td>7/21</td><td>E</td><td>6km</td><td>軽め E 走 6:10〜6:30/km。レース3日前は完全に脚を温存モードへ</td></tr>
+<tr><td>火</td><td>7/22</td><td>E</td><td>5km</td><td>軽め。途中に 30 秒×3本の流しを入れて神経系をウォームアップ</td></tr>
+<tr><td>水</td><td>7/23</td><td>移動・前日</td><td>2km</td><td>ウォームアップ散歩程度。会場入り後の軽いジョグ（10分以内）で脚の感触確認のみ</td></tr>
+<tr><td>木</td><td>7/24</td><td><strong>レース</strong></td><td><strong>21.4km</strong></td><td>🏔️ <strong>富士登山競走 頂上コース</strong>。スタート前 15〜20 分にウォームアップジョグ。補給（水・塩タブレット・ジェル）は作戦通りに実行</td></tr>
+<tr><td>金</td><td>7/25</td><td>休養</td><td>—</td><td><strong>完全休養</strong>。脚の浮腫み・膝・大腿前面の痛みを確認。アイシング・脚上げ推奨</td></tr>
+<tr><td>土</td><td>7/26</td><td>E</td><td>3km</td><td>超軽め回復ジョグ。「動かせるか確認」程度。痛みがあれば中止</td></tr>
+<tr><td>日</td><td>7/27</td><td>E</td><td>3km</td><td>軽め回復走 6:30〜7:00/km</td></tr>
+</tbody></table>
+<p>週合計 <strong>40km</strong>（レース 21.4km 含む）</p>
+<blockquote class="md-quote">🏔️ <strong>レース当日の補給・ペース戦略</strong></blockquote>
+<blockquote class="md-quote">- 序盤（吉田口〜5合目）：E〜M ゾーン（HR 150 以下）で突っ込まない</blockquote>
+<blockquote class="md-quote">- 中盤（5合目〜8合目）：歩行ランの切り替えを判断。HR 165〜170 を超えたら歩く</blockquote>
+<blockquote class="md-quote">- 終盤（8合目〜頂上）：ほぼ歩行メイン。転倒注意、強風に備えた体幹安定を維持</blockquote>
+<blockquote class="md-quote">- 補給：30〜40 分ごとにジェル or 固形食、塩タブレットを 60 分ごと。脱水は高所で一気に進む</blockquote>
+<hr>
+<h5>第5週（7/28〜7/31）：レース後リカバリー 目標29km</h5>
+<table class="md-table"><tbody>
+<tr><th>曜</th><th>日付</th><th>種別</th><th>距離</th><th>内容</th></tr>
+<tr><td>月</td><td>7/28</td><td>休養</td><td>—</td><td>完全休養。筋肉痛ケア（マッサージ・ストレッチ）。タンパク質・鉄分を意識した食事</td></tr>
+<tr><td>火</td><td>7/29</td><td>E</td><td>6km</td><td>回復走 6:30〜7:00/km・HR 130 以下。痛みがあれば5km 以下に短縮</td></tr>
+<tr><td>水</td><td>7/30</td><td>E</td><td>8km</td><td>回復走 6:10〜6:30/km。脚の状態に応じて距離調整可</td></tr>
+<tr><td>木</td><td>7/31</td><td>E</td><td>8km</td><td>軽め 6:10/km。8月に向けたベースの再構築スタート</td></tr>
+<tr><td>（木末残）</td><td>—</td><td>—</td><td>7km</td><td>※ 週内残量調整。8月に繰り越し可</td></tr>
+</tbody></table>
+<p>週合計 <strong>29km</strong></p>
+<blockquote class="md-quote">レース後の下りによる遅発性筋肉痛（DOMS）は 48〜72h でピークになります。7/28〜7/29 は走れなくても気にしないでください。無理に距離を稼ごうとして第5週に詰め込むことは、8月の回復を遅らせるリスクがあります。</blockquote>
+<hr>
+<h4>月間合計確認</h4>
+<table class="md-table"><tbody>
+<tr><th>週</th><th>目標距離</th></tr>
+<tr><td>第1週</td><td>45km</td></tr>
+<tr><td>第2週</td><td>48km</td></tr>
+<tr><td>第3週</td><td>38km</td></tr>
+<tr><td>第4週</td><td>40km（レース 21.4km 含む）</td></tr>
+<tr><td>第5週</td><td>29km</td></tr>
+<tr><td><strong>合計</strong></td><td><strong>200km</strong></td></tr>
+</tbody></table>
+<hr>
+<h4>7月のキーポイント（まとめ）</h4>
+<p>1. <strong>6月の疲労を7月前半で必ずリセットする</strong> ― UNPRODUCTIVE 状態のまま高負荷を続けると VO2max の下落が止まりません。第1週は HR 130〜135 以下の純粋なイージー走を徹底してください。</p>
+<p>2. <strong>クオリティセッションは週1回（第1週は0回）</strong> ― 6月の最大の反省点は「無制御な加速が散発的に混じること」。7月は T ゾーン走を週1回、意図的・計画的に実施し、それ以外の日は迷わず E ゾーンを守ってください。</p>
+<p>3. <strong>富士登山競走に向けた登坂・下り筋強化を優先</strong> ― 第2週の週末ロングで標高差のあるコースを走る機会をぜひ作ってください。本番での「歩き走り」の感覚を体に入れておくことが、完走タイムを大きく左右します。</p>
+<p>4. <strong>睡眠 7h 確保を目標に</strong> ― 6月は平均 6.6h でした。睡眠不足は HRV を下げ、回復速度を 30〜40% 低下させます。練習量より睡眠の方が適応を生む局面です。</p>
+<p>5. <strong>レース後の回復を過小評価しない</strong> ― 富士登山競走の下りダメージは通常のマラソン後に匹敵します。7/25〜7/27 は完全リカバリーと割り切り、8月のトレーニングに向けたエネルギー温存を優先してください。</p>
+<p>良い準備と良いレースを！💪🏔️</p></div>
+  </div>
 
   
     <div class="plan-box" style="margin-bottom:24px">
@@ -932,7 +1071,7 @@
 
   
     <div class="plan-box" style="margin-bottom:24px">
-      <div class="plan-label">📅 今週の練習メニュー（7/6〜7/12 / 週45〜50km目標）</div>
+      <div class="plan-label">📅 今週の練習メニュー（7/6〜7/12 / 週48km目標） / 第2週（7/7〜7/13）：登坂特化・有酸素強化 目標48km</div>
       <div style="font-size:11px;color:#a0aec0;margin-bottom:10px">
         固定プランに対する実績を自動評価。月曜始まり・VDOT 51（現走力）基準。
       </div>
@@ -942,7 +1081,7 @@
           <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">✅</td>
           <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">月</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            休養 <span style="font-size:11px;font-weight:400;color:#a0aec0">—</span>
+            中強度+スピード <span style="font-size:11px;font-weight:400;color:#a0aec0">7km</span>
           </td>
           <td style="font-size:12px;color:#22c55e;padding:8px 8px;line-height:1.6">
             休養完了
@@ -952,60 +1091,60 @@
           <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">❌</td>
           <td style="width:28px;font-weight:700;color:#fc4c02;font-size:13px;padding:8px 4px">火</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            中強度+スピード <span style="font-size:11px;font-weight:400;color:#a0aec0">7km</span>
+            E <span style="font-size:11px;font-weight:400;color:#a0aec0">8.0km</span>
           </td>
           <td style="font-size:12px;color:#ef4444;padding:8px 8px;line-height:1.6">
-            未実施（予定: 中強度+スピード 7km）
+            未実施（予定: E 8.0km）
           </td>
         </tr>
         <tr style="">
           <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">⬜</td>
           <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">水</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            イージー走 <span style="font-size:11px;font-weight:400;color:#a0aec0">8km</span>
+            休養 <span style="font-size:11px;font-weight:400;color:#a0aec0">—</span>
           </td>
           <td style="font-size:12px;color:#a0aec0;padding:8px 8px;line-height:1.6">
-            低強度ジョグ（5:20〜5:40/km）— 会話できるペース
+            完全休養 or ヨガ・ストレッチ
           </td>
         </tr>
         <tr style="">
           <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">⬜</td>
           <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">木</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            ペース変化走 <span style="font-size:11px;font-weight:400;color:#a0aec0">10km</span>
+            E+坂 <span style="font-size:11px;font-weight:400;color:#a0aec0">12.0km</span>
           </td>
           <td style="font-size:12px;color:#a0aec0;padding:8px 8px;line-height:1.6">
-            前半 6km（5:20/km）→ ラスト 4km（4:35〜4:40/km）に上げる
+            坂道多めのコース。上り区間は「E〜M の努力感」で歩かず通す。下りは大腿前面・膝に意識を置きゆっくり
           </td>
         </tr>
         <tr style="">
           <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">⬜</td>
           <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">金</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            休養 <span style="font-size:11px;font-weight:400;color:#a0aec0">—</span>
+            E <span style="font-size:11px;font-weight:400;color:#a0aec0">8.0km</span>
           </td>
           <td style="font-size:12px;color:#a0aec0;padding:8px 8px;line-height:1.6">
-            完全休養 or 軽ジョグ（5:40/km 以上・5km 以内）
+            イージー 6:00〜6:20/km
           </td>
         </tr>
         <tr style="">
           <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">⬜</td>
           <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">土</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            インターバル <span style="font-size:11px;font-weight:400;color:#a0aec0">8km</span>
+            T <span style="font-size:11px;font-weight:400;color:#a0aec0">12.0km</span>
           </td>
           <td style="font-size:12px;color:#a0aec0;padding:8px 8px;line-height:1.6">
-            W-up 2km ＋ 1000m×5本（3:48〜3:54/km）休息2分 ＋ C-down 2km
+            **テンポ走セッション**：WU 3km（E）→ T ペース 4:20〜4:35/km を 3km×2本（間 90 秒 jog）→ CD 3km（E）。HR 157〜167 程度を目安
           </td>
         </tr>
         <tr style="">
           <td style="width:28px;text-align:center;font-size:15px;padding:8px 4px">⬜</td>
           <td style="width:28px;font-weight:400;color:#4a5568;font-size:13px;padding:8px 4px">日</td>
           <td style="font-size:13px;font-weight:600;color:#2d3748;padding:8px 8px;white-space:nowrap">
-            ロング走 <span style="font-size:11px;font-weight:400;color:#a0aec0">15km</span>
+            E <span style="font-size:11px;font-weight:400;color:#a0aec0">8.0km</span>
           </td>
           <td style="font-size:12px;color:#a0aec0;padding:8px 8px;line-height:1.6">
-            低強度ジョグ 15〜20km（5:00〜5:30/km）— 脚を使い切らない
+            軽め回復走 6:00〜6:20/km
           </td>
         </tr></tbody>
       </table>
