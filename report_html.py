@@ -1950,9 +1950,111 @@ def _week_days_from_plan():
     return days, "固定プラン（前月AIレビュー未生成）", "", total, None
 
 
+def _parse_dist_num(dist_str):
+    """"8km" / "13〜15km" / "—" → 数値（範囲は中央値、休養は0）。"""
+    s = (dist_str or "").replace("km", "").strip()
+    if not s or s in ("—", "-", "－"):
+        return 0.0
+    nums = [float(x) for x in re.findall(r"[\d.]+", s)]
+    if not nums:
+        return 0.0
+    if ("〜" in s or "-" in s) and len(nums) >= 2:
+        return round((nums[0] + nums[1]) / 2, 1)
+    return nums[0]
+
+
+def _fmt_week_target(tk):
+    if tk is None or tk == "":
+        return "—"
+    s = str(tk).strip()
+    return s if "km" in s else s + "km"
+
+
+def _payload_day_from_raw(d):
+    """{date,dow,zone,dist,desc} → プランタブ描画用（id/distKm 付与）。"""
+    dd = (d.get("date") or "").strip()
+    did = "d0000"
+    m = re.match(r"(\d+)/(\d+)", dd)
+    if m:
+        did = f"d{int(m.group(1)):02d}{int(m.group(2)):02d}"
+    dist = (d.get("dist") or "—").strip() or "—"
+    return {
+        "id": did, "date": dd, "dow": d.get("dow", ""),
+        "zone": d.get("zone") or "E", "dist": dist,
+        "distKm": _parse_dist_num(dist), "desc": d.get("desc", ""),
+    }
+
+
+def _range_contains_today(rng):
+    m = re.match(r"(\d+)/(\d+)〜(\d+)/(\d+)", rng or "")
+    if not m:
+        return False
+    sm, sd, em, ed = (int(x) for x in m.groups())
+    try:
+        return date(TARGET_YEAR, sm, sd) <= _today_now <= date(TARGET_YEAR, em, ed)
+    except ValueError:
+        return False
+
+
+def _load_full_month_weeks():
+    """plan_<YYYYMM>.json → 前月MD全週パース の順で全週を取得。無ければ None。"""
+    path = f"plan_{YYYYMM}.json"
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            weeks = data.get("weeks")
+            if isinstance(weeks, list) and weeks:
+                return weeks
+        except (OSError, ValueError):
+            pass
+    try:
+        from coach_common import parse_all_weeks_from_md
+        weeks = parse_all_weeks_from_md(TARGET_YEAR, TARGET_MONTH)
+        if weeks:
+            return weeks
+    except Exception:
+        pass
+    return None
+
+
 def build_plan_payload():
-    days, subtitle, week_title, total, ai_week = _week_days_from_plan()
     note = "月間プランは前月AIレビュー生成時に更新されます"
+    full_weeks = _load_full_month_weeks()
+
+    if full_weeks:
+        # ①plan_JSON / ②MD全週パース：5週フル表示
+        months, week_targets, cur_num, cur_days = [], {}, 0, []
+        for w in full_weeks:
+            num = w.get("num") or (len(months) + 1)
+            rng = w.get("range", "")
+            pdays = [_payload_day_from_raw(d) for d in w.get("days", [])]
+            wtotal = round(sum(d["distKm"] for d in pdays), 1)
+            week_targets[num] = _parse_dist_num(str(w.get("target_km", ""))) or wtotal
+            is_cur = _is_current_month and _range_contains_today(rng)
+            if is_cur:
+                cur_num, cur_days = num, pdays
+            months.append({
+                "num": num, "numLabel": f"第{num}週", "range": rng,
+                "theme": (w.get("theme") or f"第{num}週")[:40],
+                "target": _fmt_week_target(w.get("target_km")),
+                "days": pdays, "current": is_cur,
+            })
+        title = ""
+        if cur_num:
+            cm = next((mo for mo in months if mo["num"] == cur_num), None)
+            if cm:
+                title = f"今週：{cm['numLabel']}（{cm['range']}）"
+        return {
+            "currentWeek": cur_num, "title": title,
+            "subtitle": "前月 AI コーチの月間プランに基づく",
+            "targetKm": round(sum(d["distKm"] for d in cur_days), 1),
+            "days": cur_days, "months": months,
+            "weekTargets": week_targets, "note": note,
+        }
+
+    # ③resolve_ai_weekly_plan（今週のみ）/ ④固定プラン（従来フォールバック）
+    days, subtitle, week_title, total, ai_week = _week_days_from_plan()
     if _is_current_month:
         current_week = (_today_now - MONTH_START).days // 7 + 1
         mon = _today_now - timedelta(days=_today_now.weekday())
@@ -1961,24 +2063,18 @@ def build_plan_payload():
         months = []
         if days:
             months.append({
-                "num": current_week,
-                "numLabel": f"第{current_week}週",
+                "num": current_week, "numLabel": f"第{current_week}週",
                 "range": f"{mon.month}/{mon.day}〜{sun.month}/{sun.day}",
                 "theme": (subtitle or f"第{current_week}週")[:40],
-                "target": _fmt_dist_km(total),
-                "days": days,
-                "current": True,
+                "target": _fmt_dist_km(total), "days": days, "current": True,
             })
+        week_targets = {current_week: round(total, 1)} if days else {}
     else:
-        current_week, title, months = 0, "", []
+        current_week, title, months, week_targets = 0, "", [], {}
     return {
-        "currentWeek": current_week,
-        "title": title,
-        "subtitle": subtitle,
-        "targetKm": round(total, 1),
-        "days": days,
-        "months": months,
-        "note": note,
+        "currentWeek": current_week, "title": title, "subtitle": subtitle,
+        "targetKm": round(total, 1), "days": days, "months": months,
+        "weekTargets": week_targets, "note": note,
     }
 
 
@@ -2081,13 +2177,13 @@ def build_today_payload(plan_payload):
         "avgHr": round(avg_hr) if avg_hr else None, "elev": round(total_elev),
     }
     weeks = (MONTH_END - MONTH_START).days // 7 + 1
-    cur_week = plan_payload["currentWeek"]
-    cur_target = plan_payload["targetKm"]
+    week_targets = plan_payload.get("weekTargets") or {}
     week_bars = []
     for w in range(1, weeks + 1):
         actual = round(by_week[w]["dist"], 1) if w in by_week else 0
-        plan_t = cur_target if (cur_week and w == cur_week and cur_target) else None
-        week_bars.append({"label": f"第{w}週", "actual": actual, "plan": plan_t})
+        # weekTargets のキーは JSON 化で文字列になる場合があるため両対応
+        plan_t = week_targets.get(w) or week_targets.get(str(w))
+        week_bars.append({"label": f"第{w}週", "actual": actual, "plan": plan_t or None})
 
     menu = None
     if _is_current_month and plan_payload["days"]:
