@@ -1974,12 +1974,19 @@ def _payload_day_from_raw(d):
     """{date,dow,zone,dist,desc} → プランタブ描画用（id/distKm 付与）。"""
     dd = (d.get("date") or "").strip()
     did = "d0000"
+    dow = d.get("dow", "")
     m = re.match(r"(\d+)/(\d+)", dd)
     if m:
-        did = f"d{int(m.group(1)):02d}{int(m.group(2)):02d}"
+        mo, dy = int(m.group(1)), int(m.group(2))
+        did = f"d{mo:02d}{dy:02d}"
+        # 曜日は日付から算出（AI/JSON 記載の曜日は暦を間違えがちなので上書き）
+        try:
+            dow = _DOW_JP[date(TARGET_YEAR, mo, dy).weekday()]
+        except ValueError:
+            pass
     dist = (d.get("dist") or "—").strip() or "—"
     return {
-        "id": did, "date": dd, "dow": d.get("dow", ""),
+        "id": did, "date": dd, "dow": dow,
         "zone": d.get("zone") or "E", "dist": dist,
         "distKm": _parse_dist_num(dist), "desc": d.get("desc", ""),
     }
