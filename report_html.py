@@ -1849,8 +1849,1058 @@ def build_ai_next_month_plan_section() -> str:
         '  </div>'
     )
 
-# ── HTML 生成 ──────────────────────────────────────────────────────────────
+# ── HTML 生成（4タブ・モバイルダッシュボード v2） ───────────────────────────
 hh, rem = divmod(total_sec, 3600); mm = rem // 60
+
+_today_now = date.today()
+_is_current_month = (TARGET_YEAR == _today_now.year and TARGET_MONTH == _today_now.month)
+_DOW_JP = ["月", "火", "水", "木", "金", "土", "日"]
+
+
+def _fmt_dist_km(d):
+    d = float(d or 0)
+    if d <= 0:
+        return "—"
+    if abs(d - round(d)) < 1e-9:
+        return f"{int(round(d))}km"
+    return f"{d:g}km"
+
+
+def _plan_zone_code(type_key, label=""):
+    m = {"rest": "休養", "easy": "E", "tempo": "T", "interval": "I",
+         "long": "ロングE", "race": "レース", "move": "移動"}
+    z = m.get((type_key or "").lower())
+    if z:
+        return z
+    lab = label or ""
+    if "休" in lab: return "休養"
+    if "レース" in lab: return "レース"
+    if "移動" in lab: return "移動"
+    if "ロング" in lab: return "ロングE"
+    if "テンポ" in lab: return "T"
+    if "インターバル" in lab: return "I"
+    return "E"
+
+
+# VDOT → [eLo, eHi, M, T, I, R] 秒/km（build_performance_profile の T テーブルを移植）
+_VDOT_PACE_TABLE = {
+    45:[349,374,310,300,269,254], 47:[339,363,301,290,261,246],
+    49:[329,353,293,282,253,238], 50:[324,347,289,278,249,234],
+    51:[319,342,286,274,246,231], 52:[314,337,282,269,242,228],
+    53:[309,332,278,265,238,224], 54:[304,326,274,261,234,220],
+    55:[300,322,271,257,231,217], 56:[296,317,267,254,227,213],
+    57:[293,314,264,250,224,210], 58:[290,311,261,247,222,208],
+    59:[287,308,258,244,219,205], 60:[284,305,255,241,216,202],
+    61:[281,302,252,238,213,199], 62:[278,299,249,235,210,197],
+    63:[275,296,246,232,208,194], 64:[272,293,243,230,205,192],
+    65:[270,290,241,227,203,189], 67:[264,284,236,222,198,185],
+    70:[257,276,229,216,192,179],
+}
+
+
+def _vdot_paces(v):
+    keys = sorted(_VDOT_PACE_TABLE)
+    if v <= keys[0]:
+        return _VDOT_PACE_TABLE[keys[0]]
+    if v >= keys[-1]:
+        return _VDOT_PACE_TABLE[keys[-1]]
+    for i in range(len(keys) - 1):
+        k1, k2 = keys[i], keys[i + 1]
+        if k1 <= v <= k2:
+            r = (v - k1) / (k2 - k1)
+            return [round(a + (_VDOT_PACE_TABLE[k2][j] - a) * r)
+                    for j, a in enumerate(_VDOT_PACE_TABLE[k1])]
+    return _VDOT_PACE_TABLE[keys[-1]]
+
+
+def _pace_str(s):
+    return f"{s // 60}:{s % 60:02d}"
+
+
+# ── 今週の日次メニュー（AI プラン優先・なければ固定プラン） ──────────────────
+def _week_days_from_plan():
+    if not _is_current_month:
+        return [], "", "", 0.0, None
+    mon = _today_now - timedelta(days=_today_now.weekday())
+    ai_week = resolve_ai_weekly_plan(TARGET_YEAR, TARGET_MONTH, _today_now)
+    plan_by_date = (ai_week or {}).get("plan_by_date") or {}
+    fixed = {wd: (wd, tk, lb, dk, ds) for (wd, tk, lb, dk, ds) in _WEEKLY_PLAN}
+    days, total = [], 0.0
+    for i in range(7):
+        d = mon + timedelta(days=i)
+        if plan_by_date and d in plan_by_date:
+            _, tk, lb, dk, ds = plan_by_date[d]
+        elif plan_by_date:
+            tk, lb, dk, ds = "rest", "—", 0.0, "AI提案の対象週外"
+        else:
+            _, tk, lb, dk, ds = fixed.get(i, (i, "rest", "休養", 0.0, "完全休養"))
+        dk = float(dk or 0)
+        total += dk
+        days.append({
+            "id": "d" + d.strftime("%m%d"),
+            "date": f"{d.month}/{d.day}",
+            "dow": _DOW_JP[d.weekday()],
+            "zone": _plan_zone_code(tk, lb),
+            "dist": _fmt_dist_km(dk),
+            "distKm": round(dk, 1),
+            "desc": ds or "",
+        })
+    if ai_week:
+        return days, ai_week.get("subtitle", ""), ai_week.get("week_title", ""), total, ai_week
+    return days, "固定プラン（前月AIレビュー未生成）", "", total, None
+
+
+def _parse_dist_num(dist_str):
+    """"8km" / "13〜15km" / "—" → 数値（範囲は中央値、休養は0）。"""
+    s = (dist_str or "").replace("km", "").strip()
+    if not s or s in ("—", "-", "－"):
+        return 0.0
+    nums = [float(x) for x in re.findall(r"[\d.]+", s)]
+    if not nums:
+        return 0.0
+    if ("〜" in s or "-" in s) and len(nums) >= 2:
+        return round((nums[0] + nums[1]) / 2, 1)
+    return nums[0]
+
+
+def _fmt_week_target(tk):
+    if tk is None or tk == "":
+        return "—"
+    s = str(tk).strip()
+    return s if "km" in s else s + "km"
+
+
+def _payload_day_from_raw(d):
+    """{date,dow,zone,dist,desc} → プランタブ描画用（id/distKm 付与）。"""
+    dd = (d.get("date") or "").strip()
+    did = "d0000"
+    m = re.match(r"(\d+)/(\d+)", dd)
+    if m:
+        did = f"d{int(m.group(1)):02d}{int(m.group(2)):02d}"
+    dist = (d.get("dist") or "—").strip() or "—"
+    return {
+        "id": did, "date": dd, "dow": d.get("dow", ""),
+        "zone": d.get("zone") or "E", "dist": dist,
+        "distKm": _parse_dist_num(dist), "desc": d.get("desc", ""),
+    }
+
+
+def _range_contains_today(rng):
+    m = re.match(r"(\d+)/(\d+)〜(\d+)/(\d+)", rng or "")
+    if not m:
+        return False
+    sm, sd, em, ed = (int(x) for x in m.groups())
+    try:
+        return date(TARGET_YEAR, sm, sd) <= _today_now <= date(TARGET_YEAR, em, ed)
+    except ValueError:
+        return False
+
+
+def _load_full_month_weeks():
+    """plan_<YYYYMM>.json → 前月MD全週パース の順で全週を取得。無ければ None。"""
+    path = f"plan_{YYYYMM}.json"
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            weeks = data.get("weeks")
+            if isinstance(weeks, list) and weeks:
+                return weeks
+        except (OSError, ValueError):
+            pass
+    try:
+        from coach_common import parse_all_weeks_from_md
+        weeks = parse_all_weeks_from_md(TARGET_YEAR, TARGET_MONTH)
+        if weeks:
+            return weeks
+    except Exception:
+        pass
+    return None
+
+
+def build_plan_payload():
+    note = "月間プランは前月AIレビュー生成時に更新されます"
+    full_weeks = _load_full_month_weeks()
+
+    if full_weeks:
+        # ①plan_JSON / ②MD全週パース：5週フル表示
+        months, week_targets, cur_num, cur_days = [], {}, 0, []
+        for w in full_weeks:
+            num = w.get("num") or (len(months) + 1)
+            rng = w.get("range", "")
+            pdays = [_payload_day_from_raw(d) for d in w.get("days", [])]
+            wtotal = round(sum(d["distKm"] for d in pdays), 1)
+            week_targets[num] = _parse_dist_num(str(w.get("target_km", ""))) or wtotal
+            is_cur = _is_current_month and _range_contains_today(rng)
+            if is_cur:
+                cur_num, cur_days = num, pdays
+            months.append({
+                "num": num, "numLabel": f"第{num}週", "range": rng,
+                "theme": (w.get("theme") or f"第{num}週")[:40],
+                "target": _fmt_week_target(w.get("target_km")),
+                "days": pdays, "current": is_cur,
+            })
+        title = ""
+        if cur_num:
+            cm = next((mo for mo in months if mo["num"] == cur_num), None)
+            if cm:
+                title = f"今週：{cm['numLabel']}（{cm['range']}）"
+        return {
+            "currentWeek": cur_num, "title": title,
+            "subtitle": "前月 AI コーチの月間プランに基づく",
+            "targetKm": round(sum(d["distKm"] for d in cur_days), 1),
+            "days": cur_days, "months": months,
+            "weekTargets": week_targets, "note": note,
+        }
+
+    # ③resolve_ai_weekly_plan（今週のみ）/ ④固定プラン（従来フォールバック）
+    days, subtitle, week_title, total, ai_week = _week_days_from_plan()
+    if _is_current_month:
+        current_week = (_today_now - MONTH_START).days // 7 + 1
+        mon = _today_now - timedelta(days=_today_now.weekday())
+        sun = mon + timedelta(days=6)
+        title = week_title or f"今週：第{current_week}週（{mon.month}/{mon.day}〜{sun.month}/{sun.day}）"
+        months = []
+        if days:
+            months.append({
+                "num": current_week, "numLabel": f"第{current_week}週",
+                "range": f"{mon.month}/{mon.day}〜{sun.month}/{sun.day}",
+                "theme": (subtitle or f"第{current_week}週")[:40],
+                "target": _fmt_dist_km(total), "days": days, "current": True,
+            })
+        week_targets = {current_week: round(total, 1)} if days else {}
+    else:
+        current_week, title, months, week_targets = 0, "", [], {}
+    return {
+        "currentWeek": current_week, "title": title, "subtitle": subtitle,
+        "targetKm": round(total, 1), "days": days, "months": months,
+        "weekTargets": week_targets, "note": note,
+    }
+
+
+# ── アクティビティ詳細（ラップ表 + コーチ評価。地図は展開時に遅延初期化） ─────
+def build_activity_detail(r, lp, coach):
+    aid = str(r.get("activity_id"))
+    sc = None
+    breakdown = None
+    try:
+        sc, breakdown = score_run(r, lp, coach.get("run_type", "easy"))
+    except Exception:
+        sc, breakdown = None, None
+    bd_html = ""
+    if breakdown:
+        bd_html = (
+            '<div class="rr-bd">'
+            f'<span>ペース {breakdown["pace"]:.1f}</span>'
+            f'<span>心拍 {breakdown["hr"]:.1f}</span>'
+            f'<span>一貫性 {breakdown["cons"]:.1f}</span>'
+            f'<span>バランス {breakdown["bal"]:.1f}</span>'
+            '</div>'
+        )
+    tips_html = "".join(f"<li>{t}</li>" for t in (coach.get("tips") or []))
+    tips_block = f'<ul class="rr-tips">{tips_html}</ul>' if tips_html else ""
+    lap_html = ""
+    if len(lp) > 1:
+        rows = ""
+        for lap in lp:
+            hr = lap.get("avg_heartrate") or "-"
+            rows += (
+                "<tr>"
+                f"<td>{lap.get('lap_index', '')}</td>"
+                f"<td>{float(lap.get('distance_km') or 0):.2f}</td>"
+                f"<td>{lap.get('moving_time', '-')}</td>"
+                f"<td>{lap.get('pace_per_km', '-')}</td>"
+                f"<td>{hr}</td>"
+                "</tr>"
+            )
+        lap_html = (
+            '<table class="rr-laptable"><thead><tr>'
+            '<th>Lap</th><th>距離</th><th>時間</th><th>ペース</th><th>HR</th>'
+            f'</tr></thead><tbody>{rows}</tbody></table>'
+        )
+    map_block = f'<div id="rrmap_{aid}" class="rr-map"></div>' if gps_map.get(aid) else ''
+    detail = (
+        '<div class="rr-detail-inner">'
+        + bd_html
+        + f'<div class="rr-cp"><strong>🎯 目的：</strong>{coach.get("purpose", "")}</div>'
+        + f'<div class="rr-cp"><strong>📊 評価：</strong>{coach.get("assessment", "")}</div>'
+        + tips_block + map_block + lap_html
+        + '</div>'
+    )
+    return detail, sc
+
+
+def build_activities_payload():
+    acts = []
+    for r in sorted(runs, key=lambda x: x.get("date", ""), reverse=True):
+        aid = str(r.get("activity_id"))
+        dist = float(r.get("distance_km") or 0)
+        lp = laps_by_id.get(aid, [])
+        typ, col = training_type(r)
+        try:
+            coach = coaching_comment(r, lp)
+        except Exception:
+            coach = {"run_type": "easy", "purpose": "", "assessment": "", "tips": [], "color": col}
+        detail, sc = build_activity_detail(r, lp, coach)
+        score = sc if (dist >= 1.5 and sc is not None) else None
+        try:
+            d = date.fromisoformat(r["date"])
+            dow, dlabel = _DOW_JP[d.weekday()], f"{d.month}/{d.day}"
+        except Exception:
+            dow, dlabel = r.get("weekday", ""), (r.get("date") or "")[5:]
+        coords = gps_map.get(aid)
+        acts.append({
+            "id": aid,
+            "date": dlabel,
+            "dow": dow,
+            "typeLabel": typ,
+            "name": r.get("name", ""),
+            "dist": f"{dist:.1f}km",
+            "pace": r.get("pace_per_km") or "-",
+            "hr": r.get("avg_heartrate") or "-",
+            "score": score,
+            "detailHtml": detail,
+            "mapId": f"rrmap_{aid}",
+            "mapCoords": coords if coords else None,
+            "mapColor": coach.get("color", col),
+        })
+    return acts
+
+
+def build_today_payload(plan_payload):
+    show_garmin = (REPORT_EDITION == "local")
+    goal = _MONTH_GOAL
+    pct = min(100, round(total_dist / goal * 100)) if goal else 0
+    month_summary = {
+        "dist": round(total_dist, 1), "goal": goal, "pct": pct,
+        "runCount": len(runs), "totalTime": f"{hh}:{mm:02d}",
+        "avgHr": round(avg_hr) if avg_hr else None, "elev": round(total_elev),
+    }
+    weeks = (MONTH_END - MONTH_START).days // 7 + 1
+    week_targets = plan_payload.get("weekTargets") or {}
+    week_bars = []
+    for w in range(1, weeks + 1):
+        actual = round(by_week[w]["dist"], 1) if w in by_week else 0
+        # weekTargets のキーは JSON 化で文字列になる場合があるため両対応
+        plan_t = week_targets.get(w) or week_targets.get(str(w))
+        week_bars.append({"label": f"第{w}週", "actual": actual, "plan": plan_t or None})
+
+    menu = None
+    if _is_current_month and plan_payload["days"]:
+        tgt = f"{_today_now.month}/{_today_now.day}"
+        for d in plan_payload["days"]:
+            if d["date"] == tgt:
+                menu = {"zone": d["zone"], "dist": d["dist"], "desc": d["desc"],
+                        "dateLabel": f"{_today_now.month}/{_today_now.day}（{_DOW_JP[_today_now.weekday()]}）"}
+                break
+
+    race = None
+    if _is_current_month and _NEXT_RACE:
+        dtr = (_NEXT_RACE - _today_now).days
+        if dtr is not None and dtr >= 0:
+            race = {"name": _RACE_NAME,
+                    "sub": f"{_NEXT_RACE.month}/{_NEXT_RACE.day}（{_DOW_JP[_NEXT_RACE.weekday()]}）・{_RACE_DIST:g}km",
+                    "days": dtr}
+
+    garmin_days = None
+    garmin_labels = None
+    condition_alert = None
+    vo2 = None
+    if show_garmin:
+        try:
+            import garmin as _gm2
+            vo2 = _gm2.latest_vo2max()
+            recent = _gm2.recent_daily(6, TARGET_YEAR, TARGET_MONTH)
+            gd = []
+            for g in recent:
+                ds = (g.get("date") or "")[5:]
+                sh = (g.get("sleep_hours") or "").strip()
+                gd.append({
+                    "date": ds.replace("-", "/") if ds else "",
+                    "ready": (g.get("readiness_score") or "").strip() or "—",
+                    "hv": (g.get("hrv_last_night") or "").strip() or "—",
+                    "sleep": (sh + "h") if sh else "—",
+                    "rhr": (g.get("resting_hr") or "").strip() or "—",
+                    "status": (g.get("training_status") or "").strip() or "—",
+                })
+            if gd:
+                garmin_days = gd
+                garmin_labels = {"hv": "HRV"}
+            if _is_current_month and recent:
+                latest = recent[0]
+                try:
+                    rd = int(float(latest.get("readiness_score") or 0))
+                except (TypeError, ValueError):
+                    rd = None
+                if rd is not None and rd < 20:
+                    menu_txt = f"予定は「{menu['zone']} {menu['dist']}」ですが、" if menu else ""
+                    sl = (latest.get("sleep_hours") or "").strip()
+                    st = (latest.get("training_status") or "").strip()
+                    parts = [f"レディネス <strong>{rd}/100</strong>"]
+                    if sl:
+                        parts.append(f"昨夜の睡眠 <strong>{sl}h</strong>")
+                    if st:
+                        parts.append(f"ステータス {st}")
+                    condition_alert = {
+                        "title": "今日は回復を最優先",
+                        "body": "・".join(parts) + "。" + menu_txt
+                                + "この状態では完全休養か30分ウォークへの置き換えを推奨します。",
+                    }
+        except Exception:
+            garmin_days, garmin_labels, condition_alert, vo2 = None, None, None, None
+
+    return {
+        "conditionAlert": condition_alert,
+        "menu": menu,
+        "raceCountdown": race,
+        "monthSummary": month_summary,
+        "weekBars": week_bars,
+        "showGarmin": bool(show_garmin and garmin_days),
+        "garmin": garmin_days,
+        "garminLabels": garmin_labels,
+        "vo2max": (f"{vo2:.1f}" if isinstance(vo2, (int, float)) else None),
+        "activities": build_activities_payload(),
+    }
+
+
+def _extract_md_highlights(md, n=5):
+    items = []
+    for line in md.splitlines():
+        s = line.strip()
+        if s.startswith("- ") or s.startswith("* "):
+            txt = re.sub(r"\*\*(.+?)\*\*", r"\1", s[2:]).strip()
+            if txt:
+                items.append(txt)
+        if len(items) >= n:
+            break
+    return items
+
+
+def build_coach_payload():
+    body_html = load_ai_coaching_body()
+    raw = ""
+    if os.path.exists(COACH_MD):
+        try:
+            with open(COACH_MD, encoding="utf-8") as f:
+                raw = f.read()
+        except OSError:
+            raw = ""
+    meta = format_last_coach_meta()
+    model = (meta or {}).get("model", "Claude")
+    kicker = f"AI 月次コーチング ・ {MONTH_LABEL}レビュー"
+    if body_html:
+        headline = f"{MONTH_LABEL}のトレーニング総評"
+        for line in raw.splitlines():
+            s = re.sub(r"\*\*(.+?)\*\*", r"\1", line.strip().lstrip("#").strip())
+            if s and not s.startswith("|") and len(s) > 6 and "コーチングレビュー" not in s:
+                headline = s[:80]
+                break
+        points = [{"sym": "•", "color": "#D6D3CE", "text": t}
+                  for t in _extract_md_highlights(raw, 3)]
+    else:
+        headline = "AIレビュー未生成 — ヘッダーの「AI」ボタンで生成できます"
+        points = []
+    verdict = {"kicker": kicker, "headline": headline, "points": points}
+
+    sections = []
+    if body_html:
+        sections.append({"id": "review", "title": "月次レビュー", "meta": model,
+                         "body": body_html, "open": True})
+    for r in sorted(runs, key=lambda x: x.get("date", ""), reverse=True):
+        if float(r.get("distance_km") or 0) < 1.5:
+            continue
+        aid = str(r.get("activity_id"))
+        lp = laps_by_id.get(aid, [])
+        try:
+            c = coaching_comment(r, lp)
+        except Exception:
+            continue
+        body = (f'<div class="rr-cp"><strong>🎯 目的：</strong>{c.get("purpose", "")}</div>'
+                f'<div class="rr-cp"><strong>📊 評価：</strong>{c.get("assessment", "")}</div>')
+        sections.append({
+            "id": "a" + aid,
+            "title": f'{r.get("date", "")} {r.get("name", "")}',
+            "meta": f'{float(r.get("distance_km") or 0):.1f}km ・ {r.get("pace_per_km", "-")}/km',
+            "body": body, "open": False,
+        })
+
+    keypoints = _extract_md_highlights(raw, 5) if raw else []
+
+    vdot = _VO2MAX
+    p = _vdot_paces(vdot)
+    hrmax = 0
+    for r in runs:
+        try:
+            hrmax = max(hrmax, int(float(r.get("max_heartrate") or 0)))
+        except (TypeError, ValueError):
+            pass
+    if hrmax < 150:
+        hrmax = 198
+
+    def _hrr(lo, hi):
+        return f"{int(hrmax * lo)}〜{int(hrmax * hi)}bpm"
+
+    pace_zones = [
+        {"zone": "E イージー", "pace": f"{_pace_str(p[0])}〜{_pace_str(p[1])}",
+         "desc": f"{_hrr(.62, .75)} ・ 有酸素基礎・回復", "color": "#22c55e"},
+        {"zone": "M マラソン", "pace": _pace_str(p[2]),
+         "desc": f"{_hrr(.79, .87)} ・ レースペース", "color": "#3b82f6"},
+        {"zone": "T テンポ", "pace": f"{_pace_str(p[3])}〜{_pace_str(p[3] + 6)}",
+         "desc": f"{_hrr(.85, .90)} ・ 乳酸閾値向上", "color": "#f59e0b"},
+        {"zone": "I インターバル", "pace": _pace_str(p[4]),
+         "desc": f"{_hrr(.95, 1.0)} ・ VO₂max 向上", "color": "#ef4444"},
+        {"zone": "R レペ", "pace": _pace_str(p[5]),
+         "desc": "最大強度 ・ スピード・走力", "color": "#8b5cf6"},
+    ]
+    return {"verdict": verdict, "sections": sections, "keypoints": keypoints,
+            "paceZones": pace_zones, "vdot": vdot}
+
+
+def build_records_payload():
+    import math as _m
+
+    def _sec_to_vdot(sec):
+        v = 42195 / sec * 60
+        vo2 = -4.6 + 0.182258 * v + 0.000104 * v ** 2
+        t = sec / 60
+        pctf = 0.8 + 0.1894393 * _m.exp(-0.012778 * t) + 0.2989558 * _m.exp(-0.1932605 * t)
+        return round(vo2 / pctf, 1)
+
+    pbs = load_pbs()
+    keys = ["1mile", "3km", "5km", "10km", "half", "full"]
+    cards, gaps = [], {}
+    for k in keys:
+        meta = _PB_META[k]
+        pb = pbs.get(k, {})
+        t310 = _TARGETS[k]["sub310"]
+        t300 = _TARGETS[k]["sub300"]
+        pb_sec = pb.get("time_sec")
+        if pb_sec:
+            reach310 = pb_sec <= t310
+            bar_pct = max(0, min(100, int((t310 - pb_sec) / max(t310 - t300, 1) * 100)))
+            if reach310:
+                badge, ok = "✓ Sub 3:10", True
+            else:
+                gm, gs = divmod(pb_sec - t310, 60)
+                badge, ok = f"あと -{gm}:{gs:02d}", False
+            gaps[k] = pb_sec - t310
+        else:
+            bar_pct, badge, ok = 0, "未計測", False
+        cards.append({"dist": meta["label"].upper(), "time": pb.get("time_str", "—"),
+                      "date": pb.get("date", ""), "pct": bar_pct, "ok": ok,
+                      "badge": badge, "target": _sec_to_str(t310)})
+    focus = None
+    if gaps:
+        worst = max(gaps, key=lambda k: gaps[k])
+        if gaps[worst] > 0:
+            fm, fs = divmod(gaps[worst], 60)
+            focus = f"{_PB_META[worst]['label']}（Sub 3:10 まであと {fm}:{fs:02d}）"
+
+    vdot_cur = _VO2MAX
+    pb_vdot = _sec_to_vdot(_CURRENT_PB_SEC)
+    marker = max(0, min(100, (vdot_cur - 48) / (63 - 48) * 100))
+    to_g1 = max(0, 59 - vdot_cur)
+    to_ult = max(0, 63 - vdot_cur)
+    return {
+        "pbs": cards, "focus": focus,
+        "vdot": {"current": vdot_cur, "markerPct": round(marker, 1),
+                 "pbVdot": round(pb_vdot), "pbStr": _CURRENT_PB},
+        "targets": [
+            {"kicker": "NEXT GOAL", "value": "Sub 3:10", "color": "#B45309",
+             "sub": f"VDOT 59 相当 ・ あと +{to_g1}"},
+            {"kicker": "ULTIMATE", "value": "Sub 3:00", "color": "#B91C1C",
+             "sub": f"VDOT 63 相当 ・ あと +{to_ult}"},
+        ],
+    }
+
+
+_plan_payload = build_plan_payload()
+payload = {
+    "meta": {
+        "monthLabel": MONTH_LABEL, "yyyymm": YYYYMM, "edition": REPORT_EDITION,
+        "isCurrentMonth": _is_current_month, "monthGoal": _MONTH_GOAL,
+    },
+    "today": build_today_payload(_plan_payload),
+    "plan": _plan_payload,
+    "coach": build_coach_payload(),
+    "records": build_records_payload(),
+}
+
+# プライバシー: online 版（公開）は Garmin 生データ（レディネス/HRV/睡眠/安静時HR）を一切埋め込まない
+if REPORT_EDITION != "local":
+    payload["today"]["garmin"] = None
+    payload["today"]["garminLabels"] = None
+    payload["today"]["conditionAlert"] = None
+    payload["today"]["showGarmin"] = False
+    payload["today"]["vo2max"] = None
+
+
+CSS = """
+  html,body{margin:0;padding:0;background:#F4F3F0}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",sans-serif;color:#1C1917;-webkit-font-smoothing:antialiased;line-height:1.6}
+  a{color:#C2410C;text-decoration:none}
+  a:hover{color:#FC4C02;text-decoration:underline}
+  .edition-banner{padding:8px 16px;font-size:12.5px;line-height:1.5}
+  .edition-banner a{color:inherit;font-weight:700}
+  .edition-banner.edition-online{background:#dbeafe;color:#1e3a8a}
+  .edition-banner.edition-local{background:#ffedd5;color:#9a3412}
+  .edition-banner.edition-other{background:#fef3c7;color:#92400e}
+  .rr-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid #E7E5E1}
+  .rr-header-inner{max-width:760px;margin:0 auto;padding:0 16px}
+  .rr-header-row1{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 8px;flex-wrap:wrap;transition:padding .15s ease}
+  .rr-title{display:flex;align-items:center;gap:10px}
+  .rr-bar{width:10px;height:22px;background:#FC4C02;border-radius:3px;transition:height .15s ease}
+  .rr-month{font-size:19px;font-weight:800;letter-spacing:-.01em;transition:font-size .15s ease}
+  .rr-sub{font-size:12px;color:#78716C;font-weight:600}
+  /* スクロール時の折りたたみ（モバイルでヘッダー面積を圧縮） */
+  .rr-header.rr-collapsed .rr-header-row1{padding:6px 0}
+  .rr-header.rr-collapsed .rr-month{font-size:15px}
+  .rr-header.rr-collapsed .rr-bar{height:16px}
+  .rr-header.rr-collapsed .rr-sub,
+  .rr-header.rr-collapsed .header-actions,
+  .rr-header.rr-collapsed #github-sync-panel,
+  .rr-header.rr-collapsed .month-nav,
+  .rr-header.rr-collapsed .rr-meta{display:none}
+  .rr-tabs{display:flex;gap:2px;overflow-x:auto}
+  .rr-tab{all:unset;box-sizing:border-box;cursor:pointer;padding:9px 16px 11px;font-size:13.5px;font-weight:700;color:#78716C;white-space:nowrap;border-bottom:3px solid transparent}
+  .rr-main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
+  .rr-main section{display:flex;flex-direction:column;gap:16px}
+  .header-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .btn-update{background:#FC4C02;color:#fff;border:none;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .15s,opacity .15s}
+  .btn-update:hover:not(:disabled){transform:translateY(-1px)}
+  .btn-update:disabled{opacity:.65;cursor:wait}
+  .btn-coach{background:#eef2ff;color:#4338ca;border:none;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .15s,opacity .15s}
+  .btn-coach:hover:not(:disabled){transform:translateY(-1px)}
+  .btn-coach:disabled{opacity:.65;cursor:wait}
+  .btn-garmin{background:#ecfdf5;color:#047857;border:none;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:transform .1s}
+  .btn-garmin:hover:not(:disabled){transform:translateY(-1px)}
+  .btn-garmin:disabled{opacity:.65;cursor:wait}
+  .btn-sync-link{display:inline-flex;align-items:center;text-decoration:none;background:#FC4C02;color:#fff;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;white-space:nowrap}
+  #github-sync-panel{display:none}
+  .month-nav{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+  .mnav-arrow{border:1px solid #E7E5E1;background:#fff;color:#78716C;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;text-decoration:none}
+  .mnav-disabled{color:#D6D3CE}
+  .mnav-label{font-size:12px;font-weight:700;color:#1C1917;padding:0 4px;white-space:nowrap}
+  .back-latest{font-size:11px;color:#C2410C;font-weight:700;text-decoration:none;margin-left:6px}
+  .update-hint{font-size:11px;color:#78716C;max-width:200px;line-height:1.4}
+  .rr-meta{font-size:10.5px;color:#78716C;line-height:1.45;padding-bottom:6px}
+  .rr-meta p{margin:0}
+  .last-coach.stale{color:#B45309}
+  .last-coach-warn{color:#B45309;font-weight:700}
+  .update-status{margin:0 0 8px;background:#FEF6E7;border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.5;display:none;color:#7c2d12}
+  .update-status.visible{display:block}
+  .update-status.error{background:#FEF2F2;color:#991B1B}
+  .update-status.success{background:#ECFDF3;color:#15803D}
+  .update-log{margin-top:6px;max-height:120px;overflow:auto;font-family:ui-monospace,monospace;font-size:11px;white-space:pre-wrap}
+  .rr-map{height:200px;border-radius:10px;margin:10px 0;background:#EDECE8}
+  .rr-bd{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:#78716C;margin-bottom:8px}
+  .rr-bd span{background:#FAFAF8;border-radius:6px;padding:2px 8px}
+  .rr-cp{font-size:12.5px;color:#44403C;line-height:1.7;margin-bottom:6px}
+  .rr-tips{margin:6px 0 6px 18px;font-size:12px;color:#57534E;line-height:1.7}
+  .rr-laptable{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:8px}
+  .rr-laptable th,.rr-laptable td{border:1px solid #EDECE8;padding:4px 8px;text-align:right}
+  .rr-laptable th{background:#FAFAF8;color:#78716C;font-weight:700}
+  .rr-coachbody :first-child{margin-top:0}
+  .rr-coachbody table{border-collapse:collapse;font-size:12px}
+  .rr-coachbody th,.rr-coachbody td{border:1px solid #EDECE8;padding:4px 8px}
+"""
+
+
+# ── レンダリング + 状態管理（プレーン文字列。f-string ではないので { } はそのまま） ──
+RENDER_JS = r"""
+const DATA = /*__DATA__*/;
+(function(){
+  const M = DATA.meta, T = DATA.today, P = DATA.plan, C = DATA.coach, R = DATA.records;
+  const DONE_KEY = 'rr2-done-' + M.yyyymm;
+  const TABS = ['today','plan','coach','records'];
+  const state = { tab:'today', openWeek: P.currentWeek||0, openCoach:{}, done:{} };
+  try { state.done = JSON.parse(localStorage.getItem(DONE_KEY) || '{}') || {}; } catch(e){}
+  const mapInited = {};
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function zoneStyle(zone){
+    const map = {'E':'#22c55e','E+坂':'#16a34a','ロングE':'#15803d','T':'#f59e0b','M':'#3b82f6','I':'#ef4444','R':'#8b5cf6','休養':'#A8A29E','レース':'#FC4C02','移動':'#A8A29E'};
+    const bg = map[zone] || '#A8A29E';
+    return 'background:'+bg+';color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:3px 0;width:58px;text-align:center;flex-shrink:0';
+  }
+  function chipStyle(label){
+    const m = {'イージー走':['#ECFDF3','#15803D','#BBF7D0'],'テンポ走':['#FEF6E7','#B45309','#FDE8C0'],'インターバル':['#FEF2F2','#B91C1C','#FECACA'],'ロング走':['#EEF2FF','#4338CA','#C7D2FE']};
+    const c = m[label] || ['#F5F5F4','#57534E','#E7E5E1'];
+    return 'background:'+c[0]+';color:'+c[1]+';border:1px solid '+c[2]+';font-size:11px;font-weight:800;border-radius:999px;padding:3px 10px;flex-shrink:0';
+  }
+  function tile(label,val,unit){
+    const u = unit ? "<span style='font-size:12px;color:#A8A29E'> "+esc(unit)+"</span>" : '';
+    return "<div style='background:#FAFAF8;border-radius:10px;padding:10px 12px'><div style='font-size:11px;color:#78716C;font-weight:700;margin-bottom:2px'>"+esc(label)+"</div><div style='font-size:18px;font-weight:800'>"+esc(val)+u+"</div></div>";
+  }
+
+  // ---------- 今日 ----------
+  function renderToday(){
+    const el = document.getElementById('tab-today');
+    let h = '';
+    if (T.conditionAlert){
+      h += "<div style='background:#FEF2F2;border:1px solid #FECACA;border-radius:14px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start'><div style='font-size:22px;line-height:1.2'>🛑</div><div style='flex:1'><div style='font-size:14px;font-weight:800;color:#991B1B;margin-bottom:2px'>"+esc(T.conditionAlert.title)+"</div><div style='font-size:12.5px;color:#7F1D1D;line-height:1.7'>"+T.conditionAlert.body+"</div></div></div>";
+    }
+    if (T.menu){
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>今日のメニュー — "+esc(T.menu.dateLabel)+"</div><a href='#plan' data-goto='plan' style='font-size:12px;font-weight:700;color:#C2410C'>今週のプラン →</a></div><div style='display:flex;align-items:center;gap:14px;flex-wrap:wrap'><span style='"+zoneStyle(T.menu.zone)+";width:auto;padding:6px 12px;font-size:13px'>"+esc(T.menu.zone)+"</span><div style='font-size:26px;font-weight:900;letter-spacing:-.02em'>"+esc(T.menu.dist)+"</div><div style='font-size:13px;color:#57534E'>"+esc(T.menu.desc)+"</div></div></div>";
+    }
+    if (T.raceCountdown){
+      const r = T.raceCountdown;
+      h += "<div style='background:#1C1917;color:#fff;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:16px'><div style='font-size:24px'>🏔️</div><div style='flex:1'><div style='font-size:14px;font-weight:800'>"+esc(r.name)+"</div><div style='font-size:12px;color:#A8A29E'>"+esc(r.sub)+"</div></div><div style='text-align:right'><div style='font-size:26px;font-weight:900;color:#FC4C02;line-height:1'>"+r.days+"</div><div style='font-size:11px;color:#A8A29E;font-weight:700'>日後</div></div></div>";
+    }
+    const ms = T.monthSummary;
+    const monLabel = M.monthLabel.replace(/^\d+年/,'');
+    h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>"+esc(monLabel)+"の走行距離</div><div style='font-size:12px;color:#78716C'>月間目標 "+ms.goal+"km</div></div><div style='display:flex;align-items:baseline;gap:8px;margin-bottom:10px'><div style='font-size:34px;font-weight:900;letter-spacing:-.02em'>"+ms.dist+"</div><div style='font-size:14px;font-weight:700;color:#78716C'>km</div><div style='font-size:12px;color:#A8A29E;margin-left:auto'>"+ms.pct+"%</div></div><div style='height:8px;background:#EDECE8;border-radius:4px;overflow:hidden;margin-bottom:16px'><div style='height:8px;width:"+ms.pct+"%;background:#FC4C02;border-radius:4px'></div></div><div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px'>"+tile('ラン回数',ms.runCount,'回')+tile('総時間',ms.totalTime,'')+tile('平均心拍',ms.avgHr==null?'—':ms.avgHr,'bpm')+tile('獲得標高',ms.elev,'m')+"</div></div>";
+
+    if (T.weekBars && T.weekBars.length){
+      let maxKm = 50;
+      T.weekBars.forEach(function(w){ maxKm = Math.max(maxKm, w.actual||0, w.plan||0); });
+      let bars = '';
+      T.weekBars.forEach(function(w){
+        const planW = w.plan ? (w.plan/maxKm*100) : 0;
+        const actW = (w.actual/maxKm*100);
+        const right = (w.plan!=null) ? ("<strong>"+w.actual+"</strong><span style='color:#A8A29E'> / "+w.plan+"km</span>") : ("<strong>"+w.actual+"</strong><span style='color:#A8A29E'> km</span>");
+        bars += "<div style='display:flex;align-items:center;gap:10px'><div style='width:44px;font-size:11px;font-weight:700;color:#78716C;flex-shrink:0'>"+esc(w.label)+"</div><div style='flex:1;position:relative;height:18px;background:#EDECE8;border-radius:5px;overflow:hidden'><div style='position:absolute;left:0;top:0;height:18px;width:"+planW+"%;background:#E0DED9;border-radius:5px'></div><div style='position:absolute;left:0;top:0;height:18px;width:"+actW+"%;background:#FC4C02;border-radius:5px'></div></div><div style='width:86px;font-size:11.5px;text-align:right;flex-shrink:0'>"+right+"</div></div>";
+      });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:14px'>週別距離（実績 / 目標）</div><div style='display:flex;flex-direction:column;gap:10px'>"+bars+"</div><div style='display:flex;gap:14px;margin-top:12px;font-size:11px;color:#78716C'><span style='display:inline-flex;align-items:center;gap:5px'><span style='width:10px;height:10px;background:#FC4C02;border-radius:3px;display:inline-block'></span>実績</span><span style='display:inline-flex;align-items:center;gap:5px'><span style='width:10px;height:10px;background:#E0DED9;border-radius:3px;display:inline-block'></span>目標</span></div></div>";
+    }
+
+    if (T.showGarmin && T.garmin && T.garmin.length){
+      const GL = T.garminLabels || {};
+      let rows = '';
+      T.garmin.forEach(function(g){
+        const rd = parseInt(g.ready);
+        const c = (!isNaN(rd)&&rd>=40) ? '#22c55e' : (!isNaN(rd)&&rd>=20) ? '#f59e0b' : '#ef4444';
+        const up = g.status==='UNPRODUCTIVE';
+        rows += "<div style='display:flex;align-items:center;gap:10px;padding:7px 10px;background:#FAFAF8;border-radius:9px'><div style='width:42px;font-size:11.5px;font-weight:700;color:#57534E;flex-shrink:0'>"+esc(g.date)+"</div><div style='width:70px;flex-shrink:0;display:flex;align-items:center;gap:6px'><div style='width:9px;height:9px;border-radius:50%;background:"+c+";flex-shrink:0'></div><span style='font-size:12px;font-weight:800'>"+esc(g.ready)+"</span></div><div style='font-size:11.5px;color:#78716C;flex:1'>睡眠 <strong style='color:#44403C'>"+esc(g.sleep)+"</strong> ・ "+esc(GL.hv)+" "+esc(g.hv)+" ・ 安静時 "+esc(g.rhr)+"</div><div style='font-size:9.5px;font-weight:800;letter-spacing:.04em;border-radius:5px;padding:2px 7px;flex-shrink:0;background:"+(up?'#FEF2F2':'#FEF6E7')+";color:"+(up?'#B91C1C':'#B45309')+"'>"+esc(g.status)+"</div></div>";
+      });
+      const vo2 = T.vo2max ? "<div style='font-size:11px;color:#A8A29E'>VO₂Max "+esc(T.vo2max)+"</div>" : '';
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>コンディション（Garmin・直近6日）</div>"+vo2+"</div><div style='display:flex;flex-direction:column;gap:6px'>"+rows+"</div></div>";
+    }
+
+    if (T.activities && T.activities.length){
+      let acts = '';
+      T.activities.forEach(function(a){
+        const sc = (a.score!=null) ? "<div style='font-size:16px;font-weight:900;color:#D97706'>"+a.score+"</div>" : "<div style='font-size:16px;font-weight:900;color:#57534E'>—</div>";
+        acts += "<div style='border:1px solid #EDECE8;border-radius:11px;overflow:hidden'><div class='rr-actrow' data-act='"+a.id+"' style='display:flex;align-items:center;gap:12px;padding:12px 14px;flex-wrap:wrap;cursor:pointer'><div style='width:52px;flex-shrink:0'><div style='font-size:13px;font-weight:800'>"+esc(a.date)+"</div><div style='font-size:10.5px;color:#A8A29E'>"+esc(a.dow)+"</div></div><span style='"+chipStyle(a.typeLabel)+"'>"+esc(a.typeLabel)+"</span><div style='flex:1;min-width:120px'><div style='font-size:13.5px;font-weight:700'>"+esc(a.name)+"</div><div style='font-size:11.5px;color:#78716C'>"+esc(a.dist)+" ・ "+esc(a.pace)+"/km ・ HR "+esc(a.hr)+"</div></div><div style='text-align:right'>"+sc+"<div style='font-size:10px;color:#A8A29E'>スコア</div></div></div><div class='rr-detail' data-detail='"+a.id+"' style='display:none;padding:0 14px 14px'>"+a.detailHtml+"</div></div>";
+      });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:12px'>今月のアクティビティ</div><div style='display:flex;flex-direction:column;gap:8px'>"+acts+"</div></div>";
+    } else {
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:8px'>今月のアクティビティ</div><div style='font-size:12.5px;color:#A8A29E'>この月の記録はまだありません。</div></div>";
+    }
+    el.innerHTML = h;
+    el.querySelectorAll('[data-goto]').forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); setTab(a.getAttribute('data-goto')); }); });
+    el.querySelectorAll('.rr-actrow').forEach(function(row){ row.addEventListener('click', function(){
+      const id = row.getAttribute('data-act');
+      const det = el.querySelector("[data-detail='"+id+"']");
+      if (!det) return;
+      const show = det.style.display === 'none';
+      det.style.display = show ? 'block' : 'none';
+      if (show){ const a = T.activities.find(function(x){ return x.id===id; }); if (a && a.mapCoords) initMap(a); }
+    }); });
+  }
+
+  // ---------- プラン ----------
+  function renderPlan(){
+    const el = document.getElementById('tab-plan');
+    let h = '';
+    if (P.days && P.days.length){
+      let doneKm = 0;
+      P.days.forEach(function(d){ if (state.done[d.id]) doneKm += (d.distKm||0); });
+      const tgt = P.targetKm || 0;
+      const pct = tgt ? Math.min(100, Math.round(doneKm/tgt*100)) : 0;
+      let rows = '';
+      P.days.forEach(function(d){
+        const done = !!state.done[d.id];
+        rows += "<div style='display:flex;align-items:center;column-gap:10px;row-gap:4px;padding:10px 12px;border-radius:10px;flex-wrap:wrap;background:"+(done?'#FAFAF8':'#fff')+";border:1px solid #EDECE8;opacity:"+(done?'.55':'1')+"'><button data-done='"+d.id+"' style='all:unset;box-sizing:border-box;cursor:pointer;width:22px;height:22px;border-radius:7px;flex-shrink:0;text-align:center;line-height:22px;font-size:13px;font-weight:900;border:1px solid "+(done?'#FC4C02':'#D6D3CE')+";background:"+(done?'#FC4C02':'#fff')+";color:#fff'>"+(done?'✓':'')+"</button><div style='width:56px;flex-shrink:0'><span style='font-size:13px;font-weight:800'>"+esc(d.date)+"</span><span style='font-size:11px;color:#A8A29E;margin-left:4px'>"+esc(d.dow)+"</span></div><span style='"+zoneStyle(d.zone)+"'>"+esc(d.zone)+"</span><div style='width:52px;font-size:13px;font-weight:800;flex-shrink:0;text-align:right'>"+esc(d.dist)+"</div><div style='flex:1;min-width:160px;font-size:12px;color:#78716C;line-height:1.6'>"+esc(d.desc)+"</div></div>";
+      });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px'><div style='font-size:15px;font-weight:900'>"+esc(P.title)+"</div><div style='font-size:12px;color:#78716C'>"+esc(P.subtitle||'')+"</div></div><div style='display:flex;align-items:center;gap:10px;margin:10px 0 14px'><div style='flex:1;height:8px;background:#EDECE8;border-radius:4px;overflow:hidden'><div style='height:8px;width:"+pct+"%;background:#FC4C02;border-radius:4px'></div></div><div style='font-size:12px;font-weight:700;color:#78716C'>"+doneKm.toFixed(0)+" / "+tgt.toFixed(0)+"km</div></div><div style='display:flex;flex-direction:column;gap:6px'>"+rows+"</div><div style='margin-top:14px;background:#FFF9F5;border:1px solid #FFE1CF;border-radius:11px;padding:12px 14px;font-size:12px;color:#9A3412;line-height:1.8'>"+esc(P.note)+"</div></div>";
+    } else {
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>プラン</div><div style='font-size:12.5px;color:#78716C;margin-top:8px;line-height:1.7'>"+esc(P.note)+"</div></div>";
+    }
+    if (P.months && P.months.length){
+      let wk = '';
+      P.months.forEach(function(w){
+        const open = state.openWeek === w.num;
+        let days = '';
+        w.days.forEach(function(d){
+          days += "<div style='display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:#fff;border:1px solid #EDECE8;border-radius:9px;flex-wrap:wrap'><div style='width:56px;flex-shrink:0;padding-top:2px'><span style='font-size:12.5px;font-weight:800'>"+esc(d.date)+"</span><span style='font-size:10.5px;color:#A8A29E;margin-left:4px'>"+esc(d.dow)+"</span></div><span style='"+zoneStyle(d.zone)+"'>"+esc(d.zone)+"</span><div style='width:48px;font-size:12.5px;font-weight:800;flex-shrink:0;text-align:right;padding-top:2px'>"+esc(d.dist)+"</div><div style='flex:1;min-width:150px;font-size:11.5px;color:#78716C;line-height:1.6'>"+esc(d.desc)+"</div></div>";
+        });
+        wk += "<div style='background:#FAFAF8;border-radius:11px;overflow:hidden;border:"+(w.current?'1.5px solid #FC4C02':'1px solid #EDECE8')+"'><button data-week='"+w.num+"' style='all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;cursor:pointer'><div style='font-size:11px;font-weight:900;border-radius:7px;padding:4px 8px;flex-shrink:0;background:"+(w.current?'#FC4C02':'#E7E5E1')+";color:"+(w.current?'#fff':'#78716C')+";white-space:nowrap'>"+esc(w.numLabel)+"</div><div style='flex:1;min-width:0'><div style='font-size:13px;font-weight:800'>"+esc(w.theme)+"</div><div style='font-size:11px;color:#78716C'>"+esc(w.range)+"</div></div><div style='font-size:13px;font-weight:800;color:#57534E;white-space:nowrap'>"+esc(w.target)+"</div><div style='font-size:11px;color:#A8A29E'>"+(open?'▲':'▼')+"</div></button>"+(open?("<div style='padding:0 14px 12px;display:flex;flex-direction:column;gap:5px'>"+days+"</div>"):'')+"</div>";
+      });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:4px'>"+esc(M.monthLabel)+"の月間プラン</div><div style='display:flex;flex-direction:column;gap:8px;margin-top:10px'>"+wk+"</div></div>";
+    }
+    el.innerHTML = h;
+    el.querySelectorAll('[data-done]').forEach(function(b){ b.addEventListener('click', function(){
+      const id = b.getAttribute('data-done');
+      state.done[id] = !state.done[id];
+      try { localStorage.setItem(DONE_KEY, JSON.stringify(state.done)); } catch(e){}
+      renderPlan();
+    }); });
+    el.querySelectorAll('[data-week]').forEach(function(b){ b.addEventListener('click', function(){
+      const n = parseInt(b.getAttribute('data-week'));
+      state.openWeek = (state.openWeek===n) ? 0 : n;
+      renderPlan();
+    }); });
+  }
+
+  // ---------- AIコーチ ----------
+  function renderCoach(){
+    const el = document.getElementById('tab-coach');
+    const v = C.verdict;
+    let pts = '';
+    (v.points||[]).forEach(function(p){ pts += "<div style='display:flex;gap:8px'><span style='color:"+p.color+";font-weight:800'>"+esc(p.sym)+"</span><span>"+esc(p.text)+"</span></div>"; });
+    let h = "<div style='background:#1C1917;color:#fff;border-radius:14px;padding:20px'><div style='font-size:11px;font-weight:800;color:#A8A29E;letter-spacing:.1em;margin-bottom:10px'>"+esc(v.kicker)+"</div><div style='font-size:17px;font-weight:800;line-height:1.6;margin-bottom:"+(pts?'14px':'0')+"'>"+esc(v.headline)+"</div>"+(pts?("<div style='display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:#D6D3CE;line-height:1.7'>"+pts+"</div>"):'')+"</div>";
+    (C.sections||[]).forEach(function(s){
+      const open = (s.id in state.openCoach) ? state.openCoach[s.id] : !!s.open;
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;overflow:hidden'><button data-coach='"+s.id+"' style='all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:15px 18px;cursor:pointer'><div style='font-size:14px;font-weight:800;flex:1'>"+esc(s.title)+"</div><div style='font-size:11px;color:#A8A29E;white-space:nowrap'>"+esc(s.meta||'')+"</div><div style='font-size:11px;color:#A8A29E'>"+(open?'▲':'▼')+"</div></button>"+(open?("<div class='rr-coachbody' style='padding:0 18px 18px;font-size:13px;color:#44403C;line-height:1.85'>"+s.body+"</div>"):'')+"</div>";
+    });
+    if (C.keypoints && C.keypoints.length){
+      let kp = '';
+      C.keypoints.forEach(function(t,i){ kp += "<div style='display:flex;gap:12px'><div style='width:22px;height:22px;border-radius:7px;background:#FC4C02;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0'>"+(i+1)+"</div><div style='font-size:12.5px;line-height:1.7;color:#44403C'>"+esc(t)+"</div></div>"; });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:12px'>"+esc(M.monthLabel)+"のキーポイント</div><div style='display:flex;flex-direction:column;gap:10px'>"+kp+"</div></div>";
+    }
+    let pz = '';
+    C.paceZones.forEach(function(z){ pz += "<div style='display:flex;align-items:center;gap:12px;padding:8px 12px;background:#FAFAF8;border-radius:9px'><span style='background:"+z.color+";color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:3px 9px;width:88px;text-align:center;flex-shrink:0'>"+esc(z.zone)+"</span><div style='font-size:13.5px;font-weight:800;width:104px'>"+esc(z.pace)+"</div><div style='font-size:11.5px;color:#78716C'>"+esc(z.desc)+"</div></div>"; });
+    h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>練習ペース目安（VDOT "+C.vdot+" 基準）</div><div style='display:flex;flex-direction:column;gap:6px;margin-top:12px'>"+pz+"</div></div>";
+    el.innerHTML = h;
+    el.querySelectorAll('[data-coach]').forEach(function(b){ b.addEventListener('click', function(){
+      const id = b.getAttribute('data-coach');
+      const cur = (id in state.openCoach) ? state.openCoach[id] : false;
+      state.openCoach[id] = !cur;
+      renderCoach();
+    }); });
+  }
+
+  // ---------- 記録 ----------
+  function renderRecords(){
+    const el = document.getElementById('tab-records');
+    let cards = '';
+    R.pbs.forEach(function(p){
+      const ok = p.ok;
+      cards += "<div style='background:"+(ok?'#F7FBF7':'#FAFAF8')+";border-radius:11px;padding:12px 14px;border:1px solid "+(ok?'#D3EBD8':'#EDECE8')+"'><div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px'><div style='font-size:11px;font-weight:800;color:#78716C;letter-spacing:.06em'>"+esc(p.dist)+"</div><div style='font-size:10px;font-weight:800;color:"+(ok?'#15803D':'#78716C')+"'>"+esc(p.badge)+"</div></div><div style='font-size:20px;font-weight:900;letter-spacing:-.01em;margin-bottom:2px'>"+esc(p.time)+"</div><div style='font-size:10.5px;color:#A8A29E;margin-bottom:8px'>"+esc(p.date)+"</div><div style='height:5px;background:#EDECE8;border-radius:3px;overflow:hidden'><div style='height:5px;width:"+Math.max(p.pct,3)+"%;border-radius:3px;background:"+(ok?'#22c55e':'#A8A29E')+"'></div></div><div style='font-size:10px;color:#A8A29E;margin-top:5px'>基準 "+esc(p.target)+"</div></div>";
+    });
+    const focus = R.focus ? "<div style='font-size:11px;color:#A8A29E;margin-bottom:14px'>📌 次の重点距離：<strong style='color:#57534E'>"+esc(R.focus)+"</strong></div>" : '';
+    let h = "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>PB 階段（距離別自己ベスト）</div><div style='font-size:11px;color:#A8A29E'>Sub 3:10 相当と比較</div></div>"+focus+"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px'>"+cards+"</div></div>";
+    const vd = R.vdot;
+    h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:18px'>VDOT 進捗 — Sub 3:00 への道</div><div style='position:relative;height:10px;background:linear-gradient(90deg,#E0DED9 0%,#93B4F5 60%,#F5C063 73%,#F08A8A 100%);border-radius:5px;margin:0 8px'><div style='position:absolute;left:0%;top:16px;font-size:10.5px;color:#78716C;transform:translateX(-4px)'>VDOT "+vd.pbVdot+"<br><span style='font-weight:700'>PB "+esc(vd.pbStr)+"</span></div><div style='position:absolute;left:"+vd.markerPct+"%;top:-30px;transform:translateX(-50%);text-align:center'><div style='font-size:10.5px;font-weight:900;color:#2563EB;white-space:nowrap'>現在 "+vd.current+"</div></div><div style='position:absolute;left:"+vd.markerPct+"%;top:-6px;transform:translateX(-50%);width:22px;height:22px;background:#fff;border:4px solid #2563EB;border-radius:50%'></div><div style='position:absolute;left:73%;top:16px;transform:translateX(-50%);font-size:10.5px;color:#B45309;text-align:center;white-space:nowrap'>VDOT 59<br><span style='font-weight:800'>Sub 3:10</span></div><div style='position:absolute;right:0;top:16px;font-size:10.5px;color:#B91C1C;text-align:right;white-space:nowrap'>VDOT 63<br><span style='font-weight:800'>Sub 3:00</span></div></div><div style='height:48px'></div><div style='background:#FAFAF8;border-radius:11px;padding:14px 16px;font-size:12.5px;color:#57534E;line-height:1.9'><strong style='color:#1C1917'>Sub 3:00 への 3 つの柱</strong><br>① 週間走行量 <strong>70〜80km</strong>（現在 ~50km）<br>② 月2回以上の <strong>30km ロング走</strong><br>③ 週1回の <strong>テンポ走 or インターバル</strong></div></div>";
+    let tg = '';
+    R.targets.forEach(function(t){ tg += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px;text-align:center'><div style='font-size:11px;font-weight:800;color:#78716C;letter-spacing:.1em;margin-bottom:6px'>"+esc(t.kicker)+"</div><div style='font-size:30px;font-weight:900;color:"+t.color+"'>"+esc(t.value)+"</div><div style='font-size:11.5px;color:#A8A29E;margin-top:4px'>"+esc(t.sub)+"</div></div>"; });
+    h += "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px'>"+tg+"</div>";
+    el.innerHTML = h;
+  }
+
+  function initMap(a){
+    if (!a.mapCoords || mapInited[a.id]) return;
+    if (typeof L === 'undefined') return;
+    try {
+      const m = L.map(a.mapId, { zoomControl:true, attributionControl:false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+      const poly = L.polyline(a.mapCoords, { color:a.mapColor||'#FC4C02', weight:3, opacity:0.85 }).addTo(m);
+      m.fitBounds(poly.getBounds(), { padding:[12,12] });
+      L.circleMarker(a.mapCoords[0], { radius:6,color:'#fff',fillColor:'#22c55e',fillOpacity:1,weight:2 }).addTo(m);
+      L.circleMarker(a.mapCoords[a.mapCoords.length-1], { radius:6,color:'#fff',fillColor:'#ef4444',fillOpacity:1,weight:2 }).addTo(m);
+      mapInited[a.id] = true;
+      setTimeout(function(){ m.invalidateSize(); }, 60);
+    } catch(e){}
+  }
+
+  function setTab(tab){
+    if (TABS.indexOf(tab) < 0) tab = 'today';
+    state.tab = tab;
+    try { localStorage.setItem('rr2-tab', tab); } catch(e){}
+    if (location.hash !== '#'+tab){ try { history.replaceState(null,'','#'+tab); } catch(e){ location.hash = tab; } }
+    document.querySelectorAll('.rr-tab').forEach(function(b){
+      const active = b.getAttribute('data-tab') === tab;
+      b.style.color = active ? '#1C1917' : '#78716C';
+      b.style.borderBottom = active ? '3px solid #FC4C02' : '3px solid transparent';
+    });
+    TABS.forEach(function(k){ document.getElementById('tab-'+k).style.display = (k===tab) ? 'flex' : 'none'; });
+  }
+
+  renderToday(); renderPlan(); renderCoach(); renderRecords();
+  document.querySelectorAll('.rr-tab').forEach(function(b){ b.addEventListener('click', function(){ setTab(b.getAttribute('data-tab')); }); });
+  window.addEventListener('hashchange', function(){ const t = (location.hash||'').replace('#',''); if (TABS.indexOf(t)>=0 && t!==state.tab) setTab(t); });
+  let start = (location.hash||'').replace('#','');
+  if (TABS.indexOf(start) < 0){ try { start = localStorage.getItem('rr2-tab') || 'today'; } catch(e){ start = 'today'; } }
+  setTab(start);
+
+  // スクロールでヘッダーを折りたたむ（モバイルで面積を圧縮。ヒステリシスでちらつき防止）
+  (function(){
+    const header = document.querySelector('.rr-header');
+    if (!header) return;
+    let collapsed = false, ticking = false;
+    function apply(){
+      ticking = false;
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const want = collapsed ? (y > 60) : (y > 110);
+      if (want !== collapsed){ collapsed = want; header.classList.toggle('rr-collapsed', collapsed); }
+    }
+    window.addEventListener('scroll', function(){
+      if (!ticking){ ticking = true; window.requestAnimationFrame(apply); }
+    }, { passive: true });
+    apply();
+  })();
+})();
+"""
+
+BANNER_JS = r"""(function () {
+  const host = location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1'
+    || /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
+    || host.endsWith('.ts.net');
+  const isOnline = host.endsWith('.github.io');
+  const edition = isLocal ? 'local' : (isOnline ? 'online' : 'other');
+  const banner = document.getElementById('edition-banner');
+  const onlineUrl = "__ONLINE_URL__";
+  const localUrl = "__LOCAL_URL__";
+  const baseTitle = document.title.replace(/ \[(ローカル|オンライン)\]/g, '');
+  if (!banner) return;
+  if (edition === 'local') {
+    banner.className = 'edition-banner edition-local';
+    banner.innerHTML = '💻 <strong>ローカル版</strong>（この Mac · serve_report）'
+      + ' — 右上のボタンで更新 · 自動更新なし'
+      + ' · <a href="' + onlineUrl + '" target="_blank" rel="noopener">オンライン版を開く</a>';
+    document.title = baseTitle + ' [ローカル]';
+  } else if (edition === 'online') {
+    banner.className = 'edition-banner edition-online';
+    banner.innerHTML = '🌐 <strong>オンライン版</strong>（GitHub Pages）'
+      + ' — 毎日 23:00 JST 自動更新 · Strava同期ボタン'
+      + ' · <a href="' + localUrl + '">ローカル版</a>';
+    document.title = baseTitle + ' [オンライン]';
+  } else {
+    banner.className = 'edition-banner edition-other';
+    banner.innerHTML = '⚠️ file:// では更新できません — ターミナルで <code>python3 serve_report.py --open</code> を実行し '
+      + '<a href="' + localUrl + '">' + localUrl + '</a> をブックマークしてください';
+    document.title = baseTitle + ' [ローカル推奨]';
+  }
+})();"""
+
+AUTH_JS = r"""(function () {
+  const panel = document.getElementById('update-panel');
+  const btnUpdate = document.getElementById('btn-update');
+  const btnCoach = document.getElementById('btn-coach');
+  const btnGarmin = document.getElementById('btn-garmin');
+  const hint = document.getElementById('update-hint');
+  const statusBox = document.getElementById('update-status');
+  const statusText = document.getElementById('update-status-text');
+  const logEl = document.getElementById('update-log');
+  const host = location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1'
+    || /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
+    || host.endsWith('.ts.net');
+  const isGithubPages = host.endsWith('.github.io');
+  const githubPanel = document.getElementById('github-sync-panel');
+  const token = __TOKEN__;
+  const authHeaders = token ? { 'X-Report-Token': token } : {};
+  let pollTimer = null;
+  let activeKind = null;
+
+  if (isGithubPages && githubPanel && panel) {
+    panel.style.display = 'none';
+    githubPanel.style.display = 'flex';
+  }
+
+  if (!panel || !btnUpdate || !btnCoach) return;
+  if (!isLocal) { return; }
+
+  if (location.protocol === 'file:') {
+    hint.textContent = 'file:// では不可 → python3 serve_report.py --open';
+  }
+
+  function setButtonsDisabled(disabled) {
+    btnUpdate.disabled = disabled;
+    btnCoach.disabled = disabled;
+    if (btnGarmin) btnGarmin.disabled = disabled;
+  }
+  function setStatus(msg, isError, isSuccess) {
+    statusBox.classList.add('visible');
+    statusBox.classList.toggle('error', !!isError);
+    statusBox.classList.toggle('success', !!isSuccess);
+    statusText.textContent = msg;
+  }
+  function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+  function stepLabel(data) {
+    const labels = { starting:'準備中…', fetch:'Strava から取得中…', coach:'Claude が評価中…',
+      garmin:'Garmin から取得中…（数分かかります）', html:'HTML 再生成中…', done:'完了', error:'エラー' };
+    return labels[data.step] || data.step;
+  }
+  async function pollStatus() {
+    try {
+      const res = await fetch('/api/status', { headers: authHeaders });
+      const data = await res.json();
+      const kind = data.kind || activeKind;
+      const isSuccess = data.done && !data.running && !data.error;
+      if (!isSuccess) { setStatus(stepLabel(data), !!data.error, false); }
+      logEl.textContent = (data.log || []).slice(-12).join('\n');
+      if (data.error) { setButtonsDisabled(false); stopPoll(); return; }
+      if (data.done && !data.running) {
+        stopPoll();
+        if (kind === 'coach') {
+          const ts = data.last_coach || '';
+          setStatus(ts ? ('✓ AI コーチング完了 — ' + ts) : '✓ AI コーチング完了', false, true);
+          const lastCoachEl = document.getElementById('last-coach-msg');
+          if (lastCoachEl && ts) { lastCoachEl.className = 'last-coach ok'; lastCoachEl.textContent = '✓ 最終 AI 評価: ' + ts; }
+        } else if (kind === 'garmin') {
+          setStatus('✓ Garmin 取得・レポート再生成 完了', false, true);
+          const lg = document.getElementById('last-garmin-msg');
+          if (lg) lg.className = 'last-garmin ok';
+        } else {
+          const ts = data.last_fetch || '';
+          setStatus(ts ? ('✓ 更新完了 — データ ' + ts) : '✓ 更新完了', false, true);
+          const lastFetchEl = document.getElementById('last-fetch-msg');
+          if (lastFetchEl && ts) { lastFetchEl.className = 'last-fetch ok'; lastFetchEl.textContent = '✓ 最終データ取得: ' + ts; }
+          const coachTs = data.last_coach || '';
+          const lastCoachEl = document.getElementById('last-coach-msg');
+          if (lastCoachEl && coachTs) { lastCoachEl.className = 'last-coach ok'; lastCoachEl.textContent = '✓ 最終 AI 評価: ' + coachTs; }
+          const warnEl = document.getElementById('last-coach-warn');
+          if (warnEl) warnEl.remove();
+        }
+        setTimeout(function(){ location.reload(); }, 2500);
+      }
+    } catch (e) {
+      setStatus('サーバーに接続できません', true, false);
+      setButtonsDisabled(false);
+      stopPoll();
+    }
+  }
+  function warnFileProtocol() {
+    alert('file:// では実行できません。\n\nターミナルで:\n  cd ~/Projects/strava-report\n  python3 serve_report.py --open\n\nを実行し、http://127.0.0.1:8766/index.html を開いてください。');
+  }
+  async function startJob(endpoint, kind, startMsg) {
+    if (location.protocol === 'file:') { warnFileProtocol(); return; }
+    activeKind = kind;
+    setButtonsDisabled(true);
+    setStatus(startMsg, false, false);
+    logEl.textContent = '';
+    try {
+      const res = await fetch(endpoint, { method: 'POST', headers: authHeaders });
+      const data = await res.json();
+      if (!data.started) {
+        setStatus(data.message || 'すでに処理が実行中です', false, false);
+        if (data.message) logEl.textContent = data.message;
+        setButtonsDisabled(false);
+        return;
+      }
+      stopPoll();
+      pollTimer = setInterval(pollStatus, 1500);
+      pollStatus();
+    } catch (e) {
+      setStatus('API に接続できません。serve_report.py が起動しているか確認してください。', true, false);
+      setButtonsDisabled(false);
+    }
+  }
+  btnUpdate.addEventListener('click', function(){ startJob('/api/update', 'fetch', 'データ更新を開始しています…'); });
+  btnCoach.addEventListener('click', function(){ startJob('/api/coach', 'coach', 'AI 評価を開始しています…（Claude API）'); });
+  if (btnGarmin) { btnGarmin.addEventListener('click', function(){ startJob('/api/garmin', 'garmin', 'Garmin から取得を開始しています…（数分かかります）'); }); }
+})();"""
+
+_data_json = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
+render_js = RENDER_JS.replace("/*__DATA__*/", _data_json)
+banner_js = (BANNER_JS
+             .replace("__ONLINE_URL__", GITHUB_PAGES_URL)
+             .replace("__LOCAL_URL__", LOCAL_REPORT_URL))
+auth_js = AUTH_JS.replace("__TOKEN__", json.dumps(REPORT_SERVER_TOKEN))
 
 html = f"""<!DOCTYPE html>
 <html lang="ja">
@@ -1862,667 +2912,60 @@ html = f"""<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0 }}
-  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-          background: #f0f4f8; color: #1a202c; line-height: 1.6 }}
-  .header {{ background: linear-gradient(135deg, #fc4c02 0%, #e63800 100%);
-             color: white; padding: 32px 40px }}
-  .header.header-online {{ background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%) }}
-  .header.header-local {{ background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) }}
-  .edition-banner {{ padding: 10px 20px; font-size: 13px; line-height: 1.5;
-                    border-bottom: 1px solid rgba(0,0,0,.08) }}
-  .edition-banner a {{ color: inherit; font-weight: 700 }}
-  .edition-banner.edition-online {{ background: #dbeafe; color: #1e3a8a }}
-  .edition-banner.edition-local {{ background: #ffedd5; color: #9a3412 }}
-  .edition-banner.edition-other {{ background: #fef3c7; color: #92400e }}
-  .header-top {{ display: flex; align-items: flex-start; justify-content: space-between;
-                 gap: 16px; flex-wrap: wrap }}
-  .header h1 {{ font-size: 28px; font-weight: 700 }}
-  .header p  {{ opacity: 0.85; margin-top: 4px }}
-  .header-actions {{ display: flex; flex-direction: row; align-items: center; gap: 8px;
-                     flex-wrap: wrap; justify-content: flex-end }}
-  .btn-update {{ background: #fff; color: #e63800; border: none; border-radius: 999px;
-                 padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
-                 box-shadow: 0 2px 8px rgba(0,0,0,.15); white-space: nowrap;
-                 transition: transform .15s, opacity .15s }}
-  .btn-update:hover:not(:disabled) {{ transform: translateY(-1px) }}
-  .btn-update:disabled {{ opacity: .65; cursor: wait }}
-  .btn-coach {{ background: #eef2ff; color: #4338ca; border: none; border-radius: 999px;
-                padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
-                box-shadow: 0 2px 8px rgba(0,0,0,.12); white-space: nowrap;
-                transition: transform .15s, opacity .15s }}
-  .btn-coach:hover:not(:disabled) {{ transform: translateY(-1px) }}
-  .btn-coach:disabled {{ opacity: .65; cursor: wait }}
-  .btn-garmin {{ background: #ecfdf5; color: #047857; border: none; border-radius: 999px;
-                 padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
-                 transition: transform .1s }}
-  .btn-garmin:hover:not(:disabled) {{ transform: translateY(-1px) }}
-  .btn-garmin:disabled {{ opacity: .65; cursor: wait }}
-  .btn-sync-link {{ display: inline-flex; align-items: center; text-decoration: none;
-                    background: #fff; color: #e63800; border-radius: 999px;
-                    padding: 10px 18px; font-size: 13px; font-weight: 700;
-                    box-shadow: 0 2px 8px rgba(0,0,0,.15); white-space: nowrap;
-                    transition: transform .15s }}
-  .btn-sync-link:hover {{ transform: translateY(-1px) }}
-  #github-sync-panel {{ display: none }}
-  .update-hint {{ font-size: 11px; opacity: .85; text-align: right; max-width: 220px;
-                  line-height: 1.45 }}
-  .update-status {{ margin-top: 14px; background: rgba(0,0,0,.18); border-radius: 10px;
-                    padding: 10px 14px; font-size: 12px; line-height: 1.5; display: none }}
-  .update-status.visible {{ display: block }}
-  .update-status.error {{ background: rgba(127,29,29,.35) }}
-  .update-status.success {{ background: rgba(6,78,59,.45) }}
-  .update-log {{ margin-top: 6px; max-height: 120px; overflow: auto; font-family: ui-monospace, monospace;
-                 font-size: 11px; opacity: .9; white-space: pre-wrap }}
-  .last-fetch {{ margin-top: 6px; font-size: 13px }}
-  .last-fetch.ok {{ font-weight: 600; opacity: 1 }}
-  .last-fetch.none {{ opacity: .8; font-size: 12px }}
-  .last-garmin {{ margin-top: 4px; font-size: 13px }}
-  .last-garmin.ok {{ font-weight: 600; opacity: 1 }}
-  .last-garmin.none {{ opacity: .8; font-size: 12px }}
-  .last-coach {{ margin-top: 4px; font-size: 13px }}
-  .last-coach.ok {{ font-weight: 600; opacity: 1 }}
-  .last-coach.stale {{ font-weight: 600; opacity: 1; color: #fef3c7 }}
-  .last-coach.none {{ opacity: .8; font-size: 12px }}
-  .last-coach-warn {{ margin-top: 4px; font-size: 12px; color: #fef08a; font-weight: 600 }}
-  /* Garmin ダッシュボード（ローカル版のみ） */
-  .garmin-dash h2 small {{ font-size: 12px; font-weight: 400; color: #94a3b8 }}
-  .garmin-dash canvas {{ margin: 8px 0 16px }}
-  .garmin-dash .table-wrap {{ overflow-x: auto; -webkit-overflow-scrolling: touch }}
-  .garmin-table {{ width: 100%; border-collapse: collapse; font-size: 12.5px; white-space: nowrap }}
-  .garmin-table th, .garmin-table td {{ border: 1px solid #e2e8f0; padding: 6px 10px; text-align: center }}
-  .garmin-table th {{ background: #eef2ff; color: #3730a3; font-weight: 700; position: sticky; top: 0 }}
-  .garmin-table tbody tr:nth-child(even) {{ background: #f8fafc }}
-  .ai-coach-section {{ border: 2px solid #c7d2fe; background: linear-gradient(180deg, #fff 0%, #f8fafc 100%) }}
-  .ai-coach-body {{ font-size: 14px; line-height: 1.75; color: #334155; margin-top: 12px }}
-  .ai-coach-body h3, .ai-coach-body h4 {{ margin: 18px 0 8px; color: #1e293b; font-size: 15px }}
-  .ai-coach-body ul {{ margin: 8px 0 8px 20px }}
-  .ai-coach-body hr {{ border: none; border-top: 1px solid #e2e8f0; margin: 16px 0 }}
-  .ai-coach-placeholder {{ color: #64748b; font-size: 13px; margin-top: 8px }}
-  .ai-plan-section {{ border: 2px solid #86efac; background: linear-gradient(180deg, #fff 0%, #f0fdf4 100%) }}
-  .ai-plan-week-note {{ font-size: 13px; color: #166534; margin: 8px 0 12px; line-height: 1.6 }}
-  .ai-plan-body .md-table {{ width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 10px 0 }}
-  .ai-plan-body .md-table th, .ai-plan-body .md-table td {{
-    border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left }}
-  .ai-plan-body .md-table th {{ background: #ecfdf5; color: #065f46 }}
-  .container {{ max-width: 1100px; margin: 0 auto; padding: 32px 20px }}
-  .cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-             gap: 16px; margin-bottom: 32px }}
-  .card {{ background: #fff; border-radius: 12px; padding: 20px 24px;
-           box-shadow: 0 1px 4px rgba(0,0,0,.08) }}
-  .card .label {{ font-size: 12px; color: #718096; text-transform: uppercase;
-                  letter-spacing: .06em; margin-bottom: 6px }}
-  .card .value {{ font-size: 28px; font-weight: 700; color: #2d3748 }}
-  .card .sub   {{ font-size: 12px; color: #a0aec0; margin-top: 2px }}
-  .section {{ background: #fff; border-radius: 12px; padding: 24px;
-              box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 24px }}
-  .section h2 {{ font-size: 16px; font-weight: 600; color: #2d3748;
-                 border-left: 3px solid #fc4c02; padding-left: 10px; margin-bottom: 20px }}
-  .charts {{ display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px }}
-  canvas {{ width: 100% !important }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 13px }}
-  thead tr {{ background: #f7fafc }}
-  th {{ text-align: left; padding: 10px 12px; font-size: 11px; text-transform: uppercase;
-        letter-spacing: .05em; color: #718096; border-bottom: 2px solid #e2e8f0 }}
-  td {{ padding: 10px 12px; border-bottom: 1px solid #edf2f7 }}
-  tr:last-child td {{ border-bottom: none }}
-  tr:hover td {{ background: #f7fafc }}
-  .lap-card {{ border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;
-               overflow: hidden }}
-  .lap-title {{ background: #f7fafc; padding: 10px 16px; font-size: 13px;
-                font-weight: 600; color: #2d3748 }}
-  .lap-table {{ font-size: 12px }}
-  .lap-table th, .lap-table td {{ padding: 7px 16px }}
-  .coach-card {{ border: 1px solid #e2e8f0; border-radius: 10px;
-                 margin-bottom: 16px; overflow: hidden; background: #fff }}
-  .coach-header {{ display: flex; align-items: center; gap: 12px;
-                   padding: 12px 16px; background: #f8fafc; flex-wrap: wrap }}
-  .coach-badge {{ font-size: 12px; font-weight: 700; color: #fff;
-                  padding: 3px 10px; border-radius: 20px; white-space: nowrap }}
-  .coach-date {{ font-size: 13px; font-weight: 600; color: #2d3748 }}
-  .coach-date small {{ display: block; font-weight: 400; color: #718096; margin-top: 1px }}
-  .coach-body {{ padding: 16px 20px; display: flex; flex-direction: column; gap: 10px }}
-  .coach-purpose {{ font-size: 13px; color: #4a5568; line-height: 1.7;
-                    background: #f0fdf4; padding: 10px 14px; border-radius: 6px }}
-  .coach-assessment {{ font-size: 13px; color: #2d3748; line-height: 1.7 }}
-  .coach-tips {{ font-size: 12px; color: #718096; padding-left: 20px; line-height: 1.8;
-                 background: #fffbeb; padding: 10px 10px 10px 28px; border-radius: 6px }}
-  .coach-layout {{ display: grid; grid-template-columns: 1fr 340px; gap: 0 }}
-  .run-map {{ height: 220px; border-left: 1px solid #e2e8f0 }}
-  .no-map  {{ display:flex;align-items:center;justify-content:center;
-              color:#cbd5e0;font-size:12px;background:#f7fafc }}
-  .score-wrap {{ display:flex;align-items:center;gap:6px;flex-wrap:wrap }}
-  .score-num  {{ font-size:22px;font-weight:800 }}
-  .score-unit {{ font-size:12px;color:#a0aec0;margin-right:4px }}
-  .score-label {{ font-size:11px;color:#fff;padding:2px 8px;border-radius:10px;font-weight:600 }}
-  .score-bar-bg {{ width:80px;height:6px;background:#e2e8f0;border-radius:3px }}
-  .score-bar-fg {{ height:6px;border-radius:3px;transition:width .4s }}
-  .score-breakdown {{ display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#718096;
-                      background:#f8fafc;padding:8px 12px;border-radius:6px }}
-  .score-breakdown span {{ font-weight:600;color:#4a5568 }}
-  .top-plan {{ margin-bottom:24px }}
-  .top-plan-grid {{ display:grid;grid-template-columns:1fr 200px;gap:16px;margin-bottom:16px }}
-  .plan-box {{ background:#fff;border-radius:12px;padding:18px 20px;
-               box-shadow:0 1px 4px rgba(0,0,0,.08) }}
-  .plan-label {{ font-size:12px;font-weight:700;color:#718096;text-transform:uppercase;
-                 letter-spacing:.06em;margin-bottom:10px }}
-  .trend-box {{ }}
-  .race-box {{ text-align:center;background:linear-gradient(135deg,#fff5f5,#fff) }}
-  .race-name {{ font-size:15px;font-weight:700;color:#dc2626;margin-bottom:2px }}
-  .race-date {{ font-size:13px;color:#718096;margin-bottom:8px }}
-  .race-days {{ font-size:13px;color:#4a5568 }}
-  .race-days span {{ font-size:32px;font-weight:800;color:#dc2626;display:block }}
-  /* PB 階段 */
-  .pb-ladder {{ display:grid;grid-template-columns:repeat(6,1fr);gap:10px }}
-  .pb-card {{ background:#f8fafc;border-radius:10px;padding:12px 10px;text-align:center;
-              border:1px solid #e2e8f0 }}
-  .pb-dist {{ font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;
-              letter-spacing:.05em;margin-bottom:4px }}
-  .pb-time {{ font-size:17px;font-weight:800;color:#2d3748;margin-bottom:2px }}
-  .pb-date {{ font-size:10px;color:#a0aec0;margin-bottom:8px }}
-  .pb-bar-bg {{ height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:6px }}
-  .pb-bar-fg {{ height:6px;border-radius:3px;transition:width .4s }}
-  .pb-targets {{ display:flex;justify-content:space-between;align-items:center }}
-  @media(max-width:700px){{ .pb-ladder {{ grid-template-columns:repeat(3,1fr) }} }}
-  @media(max-width:400px){{ .pb-ladder {{ grid-template-columns:repeat(2,1fr) }} }}
-  /* パフォーマンスプロフィール */
-  .perf-section {{ margin-bottom:24px;display:flex;flex-direction:column;gap:16px }}
-  .perf-grid {{ display:grid;grid-template-columns:1fr 220px;gap:16px }}
-  .perf-pace-grid {{ display:grid;grid-template-columns:1fr 1fr;gap:16px }}
-  .perf-box {{ background:#fff;border-radius:12px;padding:18px 20px;
-               box-shadow:0 1px 4px rgba(0,0,0,.08) }}
-  .perf-box table td {{ padding:7px 10px;border-bottom:1px solid #f0f4f8;font-size:13px }}
-  .perf-box table tr:last-child td {{ border-bottom:none }}
-  .pace-badge {{ color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap }}
-  /* テーブルスクロール */
-  .table-scroll {{ overflow-x:auto;-webkit-overflow-scrolling:touch }}
-  /* ── モバイル対応（iPhone 縦型 ≈ 390px） ── */
-  @media(max-width:700px){{
-    .top-plan-grid,.perf-grid,.perf-pace-grid {{ grid-template-columns:1fr }}
-    .container {{ padding:16px 12px }}
-    .header {{ padding:20px 16px }}
-    .header h1 {{ font-size:20px }}
-    .cards {{ grid-template-columns:repeat(2,1fr);gap:10px }}
-    .card {{ padding:14px 16px }}
-    .card .value {{ font-size:22px }}
-  }}
-  @media (max-width: 800px) {{
-    .charts {{ grid-template-columns: 1fr }}
-    .coach-layout {{ grid-template-columns: 1fr }}
-    .run-map {{ border-left:none;border-top:1px solid #e2e8f0 }}
-  }}
-  /* 月別ナビゲーション */
-  .month-nav {{ background:#1a202c;display:flex;align-items:center;
-               justify-content:space-between;padding:0 8px }}
-  .mnav-arrow {{ color:#a0aec0;text-decoration:none;font-size:14px;font-weight:700;
-                padding:12px 16px;display:inline-block;white-space:nowrap }}
-  .mnav-arrow:hover {{ color:#fff }}
-  .mnav-disabled {{ color:#3a4556;cursor:default }}
-  .mnav-label {{ font-size:14px;font-weight:700;color:#fff;text-align:center;flex:1 }}
-  /* 最新へ戻るフローティングボタン */
-  .back-latest {{ position:fixed;bottom:24px;right:20px;background:#fc4c02;color:#fff;
-                 padding:12px 20px;border-radius:24px;font-size:13px;font-weight:700;
-                 text-decoration:none;box-shadow:0 4px 16px rgba(252,76,2,.45);
-                 z-index:999;transition:transform .15s }}
-  .back-latest:hover {{ transform:translateY(-2px) }}
-  /* ヘッダータイトルリンク */
-  .header-link {{ color:inherit;text-decoration:none }}
-  .header-link:hover {{ opacity:.85 }}
-  @media(max-width:480px){{
-    /* アクティビティ表：標高列を非表示 */
-    .act-col-elev {{ display:none }}
-    /* レース週テーブル：日付列を縮小、ラベル列を非表示 */
-    .rw-col-label {{ display:none }}
-    .rw-col-date {{ font-size:11px;white-space:normal!important }}
-    .rw-col-menu {{ font-size:12px }}
-    /* スコア内訳 */
-    .score-breakdown {{ font-size:11px;gap:8px }}
-    .score-bar-bg {{ display:none }}
-    .score-num {{ font-size:18px }}
-    /* ラップ表 */
-    .lap-table th,.lap-table td {{ padding:5px 8px;font-size:11px }}
-    /* コーチヘッダー */
-    .coach-header {{ flex-direction:column;align-items:flex-start }}
-    .coach-date small {{ display:inline;margin-left:6px }}
-    /* section padding 縮小 */
-    .section {{ padding:16px 12px }}
-    .plan-box {{ padding:14px 14px }}
-    .perf-box {{ padding:14px 14px }}
-  }}
-</style>
+<style>{CSS}</style>
 </head>
 <body>
 
 <div id="edition-banner" class="edition-banner" role="status" aria-live="polite"></div>
-<script>
-(function () {{
-  const host = location.hostname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1'
-    || /^100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
-    || host.endsWith('.ts.net');
-  const isOnline = host.endsWith('.github.io');
-  const edition = isLocal ? 'local' : (isOnline ? 'online' : 'other');
-  const banner = document.getElementById('edition-banner');
-  const header = document.querySelector('.header');
-  const onlineUrl = {json.dumps(GITHUB_PAGES_URL)};
-  const localUrl = {json.dumps(LOCAL_REPORT_URL)};
-  const baseTitle = document.title.replace(/ \\[(ローカル|オンライン)\\]/g, '');
+<script>{banner_js}</script>
 
-  if (!banner) return;
-
-  if (edition === 'local') {{
-    banner.className = 'edition-banner edition-local';
-    banner.innerHTML =
-      '💻 <strong>ローカル版</strong>（この Mac · serve_report）'
-      + ' — 右上のボタンで更新 · 自動更新なし'
-      + ' · <a href="' + onlineUrl + '" target="_blank" rel="noopener">オンライン版を開く</a>';
-    if (header) header.classList.add('header-local');
-    document.title = baseTitle + ' [ローカル]';
-  }} else if (edition === 'online') {{
-    banner.className = 'edition-banner edition-online';
-    banner.innerHTML =
-      '🌐 <strong>オンライン版</strong>（GitHub Pages）'
-      + ' — 毎日 23:00 JST 自動更新 · Strava同期ボタン'
-      + ' · <a href="' + localUrl + '">ローカル版</a>';
-    if (header) header.classList.add('header-online');
-    document.title = baseTitle + ' [オンライン]';
-  }} else {{
-    banner.className = 'edition-banner edition-other';
-    banner.innerHTML =
-      '⚠️ file:// では更新できません — ターミナルで <code>python3 serve_report.py --open</code> を実行し '
-      + '<a href="' + localUrl + '">' + localUrl + '</a> をブックマークしてください';
-    document.title = baseTitle + ' [ローカル推奨]';
-  }}
-}})();
-</script>
-
-{build_month_nav()}
-
-<div class="header">
-  <div class="header-top">
-    <div>
-      <a href="index.html" class="header-link">
-        <h1>🏃 ランニングレポート</h1>
-      </a>
-      <p>{MONTH_LABEL} — Strava ランニングレポート</p>
+<div class="rr-header">
+  <div class="rr-header-inner">
+    <div class="rr-header-row1">
+      <div class="rr-title">
+        <div class="rr-bar"></div>
+        <div class="rr-month">{MONTH_LABEL}</div>
+        <div class="rr-sub">ランニングレポート</div>
+      </div>
+      <div class="header-actions" id="update-panel">
+        <button type="button" class="btn-update" id="btn-update">🔄 更新</button>
+        <button type="button" class="btn-coach" id="btn-coach">🤖 AI</button>
+        {garmin_btn_html}
+        <span class="update-hint" id="update-hint"></span>
+      </div>
+      <div class="header-actions" id="github-sync-panel">
+        <a class="btn-sync-link" id="btn-github-sync" href="{GITHUB_WORKFLOW_URL}" target="_blank" rel="noopener">🔄 Strava同期</a>
+      </div>
+      {build_month_nav()}
+    </div>
+    <div class="rr-meta">
       {last_fetch_banner}
       {last_garmin_banner}
       {last_coach_banner}
     </div>
-    <div class="header-actions" id="update-panel">
-      <button type="button" class="btn-update" id="btn-update">🔄 データ更新</button>
-      <button type="button" class="btn-coach" id="btn-coach">🤖 AI 評価</button>
-      {garmin_btn_html}
-      <span class="update-hint" id="update-hint"></span>
+    <div class="update-status" id="update-status">
+      <strong id="update-status-text"></strong>
+      <div class="update-log" id="update-log"></div>
     </div>
-    <div class="header-actions" id="github-sync-panel">
-      <a class="btn-sync-link" id="btn-github-sync" href="{GITHUB_WORKFLOW_URL}" target="_blank" rel="noopener">
-        🔄 Strava同期
-      </a>
-      <span class="update-hint">Actions で Run workflow → 1〜2分後に再読み込み</span>
+    <div class="rr-tabs">
+      <button class="rr-tab" data-tab="today">今日</button>
+      <button class="rr-tab" data-tab="plan">プラン</button>
+      <button class="rr-tab" data-tab="coach">AIコーチ</button>
+      <button class="rr-tab" data-tab="records">記録</button>
     </div>
-  </div>
-  <div class="update-status" id="update-status">
-    <strong id="update-status-text"></strong>
-    <div class="update-log" id="update-log"></div>
   </div>
 </div>
 
-<div class="container">
-
-  {build_ai_coaching_section()}
-
-  {build_ai_next_month_plan_section()}
-
-  {build_pb_ladder(load_pbs())}
-
-  {build_performance_profile()}
-
-  {build_top_plan(runs)}
-
-  {build_weekly_menu(runs)}
-
-  <!-- サマリーカード -->
-  <div class="cards">
-    <div class="card">
-      <div class="label">総距離</div>
-      <div class="value">{total_dist:.1f}</div>
-      <div class="sub">km</div>
-    </div>
-    <div class="card">
-      <div class="label">ランニング回数</div>
-      <div class="value">{len(runs)}</div>
-      <div class="sub">回</div>
-    </div>
-    <div class="card">
-      <div class="label">総時間</div>
-      <div class="value">{hh}:{mm:02d}</div>
-      <div class="sub">時間:分</div>
-    </div>
-    <div class="card">
-      <div class="label">平均心拍</div>
-      <div class="value">{avg_hr:.0f}</div>
-      <div class="sub">bpm</div>
-    </div>
-    <div class="card">
-      <div class="label">累積獲得標高</div>
-      <div class="value">{total_elev:.0f}</div>
-      <div class="sub">m</div>
-    </div>
-  </div>
-
-  {garmin_dashboard_html}
-
-  <!-- グラフ -->
-  <div class="charts">
-    <div class="section">
-      <h2>週別距離</h2>
-      <canvas id="weekChart" height="180"></canvas>
-    </div>
-    <div class="section">
-      <h2>種別内訳</h2>
-      <canvas id="typeChart" height="180"></canvas>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>ペース推移</h2>
-    <canvas id="paceChart" height="120"></canvas>
-  </div>
-
-  <!-- アクティビティ一覧 -->
-  <div class="section">
-    <h2>アクティビティ一覧</h2>
-    <div class="table-scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>日付</th><th>名前</th><th>距離</th><th>タイム</th>
-          <th>ペース</th><th>HR</th><th class="act-col-elev">標高</th><th>種別</th>
-        </tr>
-      </thead>
-      <tbody>
-        {activity_rows()}
-      </tbody>
-    </table>
-    </div>
-  </div>
-
-  <!-- コーチングレビュー -->
-  <div class="section">
-    <h2>🏅 練習レビュー（1.5km以上 / VO₂Max 59 基準 / ダニエルズ・Pfitzinger・Hansons・80/20）</h2>
-    {coaching_sections(gps_map)}
-  </div>
-
-  <!-- ラップ詳細 -->
-  <div class="section">
-    <h2>ラップ詳細</h2>
-    {lap_sections()}
-  </div>
-
+<div class="rr-main">
+  <section id="tab-today" style="display:none"></section>
+  <section id="tab-plan" style="display:none"></section>
+  <section id="tab-coach" style="display:none"></section>
+  <section id="tab-records" style="display:none"></section>
 </div>
 
+<script>{auth_js}</script>
 <script>
-const orange = '#fc4c02', blue = '#3b82f6', green = '#22c55e',
-      purple = '#6366f1', yellow = '#f59e0b', red = '#ef4444';
-
-// 週別距離
-new Chart(document.getElementById('weekChart'), {{
-  type: 'bar',
-  data: {{
-    labels: {json.dumps(week_keys, ensure_ascii=False)},
-    datasets: [{{
-      label: '距離 (km)',
-      data: {json.dumps(week_dists)},
-      backgroundColor: orange + 'cc',
-      borderColor: orange,
-      borderWidth: 1, borderRadius: 6
-    }}]
-  }},
-  options: {{
-    responsive: true,
-    plugins: {{ legend: {{ display: false }} }},
-    scales: {{
-      y: {{ beginAtZero: true, title: {{ display: true, text: 'km' }} }}
-    }}
-  }}
-}});
-
-// 種別ドーナツ
-new Chart(document.getElementById('typeChart'), {{
-  type: 'doughnut',
-  data: {{
-    labels: {json.dumps(type_labels, ensure_ascii=False)},
-    datasets: [{{
-      data: {json.dumps(type_values)},
-      backgroundColor: {json.dumps(type_colors)},
-      borderWidth: 2, borderColor: '#fff'
-    }}]
-  }},
-  options: {{
-    responsive: true,
-    plugins: {{ legend: {{ position: 'bottom', labels: {{ font: {{ size: 11 }} }} }} }}
-  }}
-}});
-
-// ペース推移（分/km）
-new Chart(document.getElementById('paceChart'), {{
-  type: 'line',
-  data: {{
-    labels: {json.dumps(pace_labels, ensure_ascii=False)},
-    datasets: [
-      {{
-        label: 'ペース (分/km)',
-        data: {json.dumps(pace_data)},
-        borderColor: orange, backgroundColor: orange + '22',
-        borderWidth: 2, pointRadius: 4, tension: 0.3,
-        yAxisID: 'y'
-      }},
-      {{
-        label: '距離 (km)',
-        data: {json.dumps(dist_data)},
-        borderColor: blue, backgroundColor: blue + '22',
-        borderWidth: 2, pointRadius: 3, tension: 0.3,
-        yAxisID: 'y2', borderDash: [4,3]
-      }}
-    ]
-  }},
-  options: {{
-    responsive: true,
-    interaction: {{ mode: 'index', intersect: false }},
-    plugins: {{ legend: {{ labels: {{ font: {{ size: 11 }} }} }} }},
-    scales: {{
-      y: {{
-        title: {{ display: true, text: '分/km' }},
-        reverse: true,
-        ticks: {{
-          callback: v => {{
-            const m = Math.floor(v), s = Math.round((v - m) * 60);
-            return m + ':' + String(s).padStart(2,'0');
-          }}
-        }}
-      }},
-      y2: {{ position: 'right', title: {{ display: true, text: 'km' }},
-              grid: {{ drawOnChartArea: false }} }}
-    }}
-  }}
-}});
-{garmin_chart_js}
-</script>
-<script>
-(function () {{
-  const panel = document.getElementById('update-panel');
-  const btnUpdate = document.getElementById('btn-update');
-  const btnCoach = document.getElementById('btn-coach');
-  const btnGarmin = document.getElementById('btn-garmin');
-  const hint = document.getElementById('update-hint');
-  const statusBox = document.getElementById('update-status');
-  const statusText = document.getElementById('update-status-text');
-  const logEl = document.getElementById('update-log');
-  const host = location.hostname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1'
-    || /^100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
-    || host.endsWith('.ts.net');
-  const isGithubPages = host.endsWith('.github.io');
-  const githubPanel = document.getElementById('github-sync-panel');
-  const token = {json.dumps(REPORT_SERVER_TOKEN)};
-  const authHeaders = token ? {{ 'X-Report-Token': token }} : {{}};
-  let pollTimer = null;
-  let activeKind = null;
-
-  if (sessionStorage.getItem('scrollTo') === 'ai-coaching') {{
-    sessionStorage.removeItem('scrollTo');
-    const el = document.getElementById('ai-coaching');
-    if (el) el.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
-  }}
-
-  if (isGithubPages && githubPanel && panel) {{
-    panel.style.display = 'none';
-    githubPanel.style.display = 'flex';
-  }}
-
-  if (!panel || !btnUpdate || !btnCoach) return;
-
-  if (!isLocal) {{
-    return;
-  }}
-
-  if (location.protocol === 'file:') {{
-    hint.textContent = 'file:// では不可 → python3 serve_report.py --open';
-  }}
-
-  function setButtonsDisabled(disabled) {{
-    btnUpdate.disabled = disabled;
-    btnCoach.disabled = disabled;
-    if (btnGarmin) btnGarmin.disabled = disabled;
-  }}
-
-  function setStatus(msg, isError, isSuccess) {{
-    statusBox.classList.add('visible');
-    statusBox.classList.toggle('error', !!isError);
-    statusBox.classList.toggle('success', !!isSuccess);
-    statusText.textContent = msg;
-  }}
-
-  function stopPoll() {{
-    if (pollTimer) {{ clearInterval(pollTimer); pollTimer = null; }}
-  }}
-
-  function stepLabel(data) {{
-    const labels = {{
-      starting: '準備中…',
-      fetch: 'Strava から取得中…',
-      coach: 'Claude が評価中…',
-      garmin: 'Garmin から取得中…（数分かかります）',
-      html: 'HTML 再生成中…',
-      done: '完了',
-      error: 'エラー',
-    }};
-    return labels[data.step] || data.step;
-  }}
-
-  async function pollStatus() {{
-    try {{
-      const res = await fetch('/api/status', {{ headers: authHeaders }});
-      const data = await res.json();
-      const kind = data.kind || activeKind;
-      const isSuccess = data.done && !data.running && !data.error;
-      if (!isSuccess) {{
-        setStatus(stepLabel(data), !!data.error, false);
-      }}
-      logEl.textContent = (data.log || []).slice(-12).join('\\n');
-      if (data.error) {{
-        setButtonsDisabled(false);
-        stopPoll();
-        return;
-      }}
-      if (data.done && !data.running) {{
-        stopPoll();
-        if (kind === 'coach') {{
-          const ts = data.last_coach || '';
-          setStatus(ts ? `✓ AI コーチング完了 — ${{ts}}` : '✓ AI コーチング完了', false, true);
-          const lastCoachEl = document.getElementById('last-coach-msg');
-          if (lastCoachEl && ts) {{
-            lastCoachEl.className = 'last-coach ok';
-            lastCoachEl.textContent = `✓ 最終 AI 評価: ${{ts}}`;
-          }}
-          sessionStorage.setItem('scrollTo', 'ai-coaching');
-        }} else if (kind === 'garmin') {{
-          setStatus('✓ Garmin 取得・レポート再生成 完了', false, true);
-          const lg = document.getElementById('last-garmin-msg');
-          if (lg) lg.className = 'last-garmin ok';
-        }} else {{
-          const ts = data.last_fetch || '';
-          setStatus(ts ? `✓ 更新完了 — データ ${{ts}}` : '✓ 更新完了', false, true);
-          const lastFetchEl = document.getElementById('last-fetch-msg');
-          if (lastFetchEl && ts) {{
-            lastFetchEl.className = 'last-fetch ok';
-            lastFetchEl.textContent = `✓ 最終データ取得: ${{ts}}`;
-          }}
-          const coachTs = data.last_coach || '';
-          const lastCoachEl = document.getElementById('last-coach-msg');
-          if (lastCoachEl && coachTs) {{
-            lastCoachEl.className = 'last-coach ok';
-            lastCoachEl.textContent = `✓ 最終 AI 評価: ${{coachTs}}`;
-          }}
-          const warnEl = document.getElementById('last-coach-warn');
-          if (warnEl) warnEl.remove();
-        }}
-        setTimeout(() => location.reload(), 2500);
-      }}
-    }} catch (e) {{
-      setStatus('サーバーに接続できません', true, false);
-      setButtonsDisabled(false);
-      stopPoll();
-    }}
-  }}
-
-  function warnFileProtocol() {{
-    alert('file:// では実行できません。\\n\\nターミナルで:\\n  cd ~/Projects/strava-report\\n  python3 serve_report.py --open\\n\\nを実行し、http://127.0.0.1:8766/index.html を開いてください。');
-  }}
-
-  async function startJob(endpoint, kind, startMsg) {{
-    if (location.protocol === 'file:') {{
-      warnFileProtocol();
-      return;
-    }}
-    activeKind = kind;
-    setButtonsDisabled(true);
-    setStatus(startMsg, false, false);
-    logEl.textContent = '';
-    try {{
-      const res = await fetch(endpoint, {{ method: 'POST', headers: authHeaders }});
-      const data = await res.json();
-      if (!data.started) {{
-        setStatus(data.message || 'すでに処理が実行中です', false, false);
-        if (data.message) logEl.textContent = data.message;
-        setButtonsDisabled(false);
-        return;
-      }}
-      stopPoll();
-      pollTimer = setInterval(pollStatus, 1500);
-      pollStatus();
-    }} catch (e) {{
-      setStatus('API に接続できません。serve_report.py が起動しているか確認してください。', true, false);
-      setButtonsDisabled(false);
-    }}
-  }}
-
-  btnUpdate.addEventListener('click', () => {{
-    startJob('/api/update', 'fetch', 'データ更新を開始しています…');
-  }});
-
-  btnCoach.addEventListener('click', () => {{
-    startJob('/api/coach', 'coach', 'AI 評価を開始しています…（Claude API）');
-  }});
-
-  if (btnGarmin) {{
-    btnGarmin.addEventListener('click', () => {{
-      startJob('/api/garmin', 'garmin', 'Garmin から取得を開始しています…（数分かかります）');
-    }});
-  }}
-}})();
+{render_js}
 </script>
 </body>
 </html>

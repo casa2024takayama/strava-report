@@ -63,7 +63,7 @@ if grep -l 'const token = "[^"]' index.html 20*.html 2>/dev/null; then
   exit 1
 fi
 
-git add index.html 20*.html pbs.json races.json publish_meta.json
+git add index.html 20*.html pbs.json races.json publish_meta.json plan_*.json
 if git diff --staged --quiet; then
   echo "（変更なし — push スキップ）"
 else

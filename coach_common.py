@@ -328,6 +328,161 @@ def resolve_ai_weekly_plan(
     return None
 
 
+# ── 月間プラン（全週）構造化：markdown パース／JSON 抽出・保存 ─────────────────
+_PLAN_ZONE_ENUM = {"E", "E+坂", "ロングE", "M", "T", "I", "R", "休養", "レース", "移動"}
+# 直接コード（長いものから順に前方一致判定）
+_ZONE_TOKENS_ORDERED = ("E+坂", "ロングE", "レース", "移動", "休養", "E", "M", "T", "I", "R")
+
+
+def _normalize_zone(label: str, desc: str = "") -> str:
+    """種別ラベル/内容から design のゾーンコードへ正規化。"""
+    lab = (label or "").strip()
+    for z in _ZONE_TOKENS_ORDERED:
+        if lab == z or lab.startswith(z + " ") or lab.startswith(z + "：") \
+           or lab.startswith(z + "(") or lab.startswith(z + "（"):
+            return z
+    t = f"{lab} {desc}"
+    if "レース" in t:
+        return "レース"
+    if "移動" in t:
+        return "移動"
+    if "休" in lab:
+        return "休養"
+    if "ロング" in t:
+        return "ロングE"
+    if "Iペース" in t or "インターバル" in t:
+        return "I"
+    if "Mペース" in t or "マラソンペース" in t:
+        return "M"
+    if "Rペース" in t or "レペティ" in t:
+        return "R"
+    if "Tペース" in t or "テンポ" in t or "クオリティ" in t or "閾値" in t:
+        return "T"
+    return "E"
+
+
+def parse_all_weeks_from_md(year: int, month: int) -> list[dict] | None:
+    """前月 AI の当月練習提案 markdown から全週を構造化。失敗/空は None。
+
+    返り値: [{num, range:"M/D〜M/D", theme, target_km, days:[{date,dow,zone,dist,desc}]}]
+    """
+    plan_md = load_next_month_plan_markdown(year, month)
+    if not plan_md:
+        return None
+    blocks = re.split(r"(?=####\s*(?:[✅🟡🔵🟠]\s*)?第)", plan_md)
+    weeks: list[dict] = []
+    for block in blocks:
+        m = _WEEK_HEADER_RE.search(block)
+        if not m:
+            continue
+        sm, sd, em, ed = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+        title_tail = m.group(5).strip()
+        num_m = re.search(r"第(\d+)週", m.group(0))
+        num = int(num_m.group(1)) if num_m else len(weeks) + 1
+        km_m = _TARGET_KM_RE.search(title_tail)
+        target_km = km_m.group(1) if km_m else ""
+        theme = re.split(r"目標", title_tail)[0].strip("：: 　")
+        days: list[dict] = []
+        for line in block.splitlines():
+            line = line.strip()
+            if not line.startswith("|") or "---" in line:
+                continue
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if len(cells) < 4 or cells[0] not in _DAY_TO_WD:
+                continue
+            date_m = _DATE_CELL_RE.match(cells[1])
+            if not (date_m and len(cells) >= 5):
+                continue
+            dm, dd = int(date_m.group(1)), int(date_m.group(2))
+            label, dist_cell = cells[2], cells[3]
+            desc = cells[5] if len(cells) > 5 and cells[5] else cells[4]
+            days.append({
+                "date": f"{dm}/{dd}",
+                "dow": cells[0],
+                "zone": _normalize_zone(label, desc),
+                "dist": dist_cell or "—",
+                "desc": desc or label,
+            })
+        if not days:
+            continue
+        weeks.append({
+            "num": num,
+            "range": f"{sm}/{sd}〜{em}/{ed}",
+            "theme": theme or f"第{num}週",
+            "target_km": target_km,
+            "days": days,
+        })
+    return weeks or None
+
+
+def extract_plan_json(text: str) -> dict | None:
+    """AI 応答末尾の ```json フェンス（PLAN_JSON）を抽出・検証。失敗は None。"""
+    fences = re.findall(r"```json\s*(\{.*?\})\s*```", text or "", re.DOTALL)
+    if not fences:
+        return None
+    try:
+        data = json.loads(fences[-1])
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    month = data.get("month")
+    if not (isinstance(month, str) and re.match(r"^\d{4}-\d{2}$", month)):
+        return None
+    weeks = data.get("weeks")
+    if not isinstance(weeks, list) or not weeks:
+        return None
+    clean_weeks: list[dict] = []
+    for w in weeks:
+        if not isinstance(w, dict):
+            continue
+        days_in = w.get("days")
+        if not isinstance(days_in, list) or not days_in:
+            continue
+        clean_days: list[dict] = []
+        for d in days_in:
+            if not isinstance(d, dict):
+                continue
+            zone = str(d.get("zone", "")).strip()
+            if zone not in _PLAN_ZONE_ENUM:
+                zone = _normalize_zone(zone, str(d.get("desc", "")))
+            clean_days.append({
+                "date": str(d.get("date", "")).strip(),
+                "dow": str(d.get("dow", "")).strip(),
+                "zone": zone,
+                "dist": (str(d.get("dist", "")).strip() or "—"),
+                "desc": str(d.get("desc", "")).strip(),
+            })
+        if not clean_days:
+            continue
+        clean_weeks.append({
+            "num": w.get("num") if isinstance(w.get("num"), int) else len(clean_weeks) + 1,
+            "range": str(w.get("range", "")).strip(),
+            "theme": str(w.get("theme", "")).strip(),
+            "target_km": w.get("target_km", ""),
+            "days": clean_days,
+        })
+    if not clean_weeks:
+        return None
+    return {
+        "month": month,
+        "goal_km": data.get("goal_km"),
+        "overview": str(data.get("overview", "")).strip(),
+        "weeks": clean_weeks,
+    }
+
+
+def write_month_plan(plan: dict) -> str | None:
+    """検証済みプランを plan_<YYYYMM>.json に書き出す（健康データ非含有＝コミット可）。"""
+    month = plan.get("month")
+    if not month:
+        return None
+    path = f"plan_{month.replace('-', '')}.json"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(plan, f, ensure_ascii=False, indent=2)
+    return path
+
+
 def resolve_month(month: str | None) -> tuple[int, int, str, str, str]:
     if month:
         year_s, mon_s = month.split("-", 1)
@@ -486,6 +641,7 @@ def build_monthly_plan_constraints(year: int, month: int) -> str:
 def build_user_prompt(summary_text: str, year: int, month: int) -> str:
     nxt = next_month_label(year, month)
     ny, nm = next_month_year_month(year, month)
+    nxt_iso = f"{ny}-{nm:02d}"
     plan_constraints = build_monthly_plan_constraints(ny, nm)
 
     # ── 現在日付の考慮（月の途中なら「経過日数に対するペース」で評価させる）──
@@ -542,6 +698,23 @@ Garmin の回復・負荷指標（VO2max トレンド・トレーニングステ
   |----|------|------|------|------|
   | 月 | 7/1 | E | 8km | イージー 6:00/km |
   ```
+
+### 追加出力（回答の**最後**に、上の第5項と同じ内容を機械可読 JSON でも出力）
+回答の一番最後に、以下スキーマの JSON を **```json フェンス1個だけ**で出力してください（プランタブの自動表示に使用。前後に説明文を付けない）：
+```json
+{{
+  "month": "{nxt_iso}",
+  "goal_km": 200,
+  "overview": "月間方針を120字以内で",
+  "weeks": [
+    {{"num": 1, "range": "7/1〜7/6", "theme": "ベース再構築", "target_km": 40,
+      "days": [{{"date": "7/1", "dow": "月", "zone": "E", "dist": "8km", "desc": "イージー 6:00/km"}}]}}
+  ]
+}}
+```
+- `zone` は必ず次のいずれか：`E` `E+坂` `ロングE` `M` `T` `I` `R` `休養` `レース` `移動`
+- `weeks` は月内の全週、`days` は各週の全日（休養日も `zone`=`休養`・`dist`=`—` で必ず含める）
+- `date` は `7/1` 形式、`dist` は表示用文字列（`8km` / `—`）。上の markdown 第5項と数値を一致させること
 """
 
 
@@ -634,5 +807,17 @@ def save_coaching_report(
                 print(f"  ✓ 翌月プラン解析OK（週見出し {len(weeks)} 個）")
     except Exception as _e:  # noqa: BLE001
         print(f"  ⚠️ 翌月プランの解析チェックに失敗: {_e}")
+
+    # ── 月間プラン JSON（PLAN_JSON フェンス）の抽出・保存 ──────────────────
+    # plan_<翌YYYYMM>.json を生成（プランタブの5週フル表示用。健康データ非含有）。
+    try:
+        plan = extract_plan_json(response)
+        if plan:
+            p = write_month_plan(plan)
+            print(f"  ✓ 月間プラン JSON を保存: {p}（{len(plan['weeks'])} 週）")
+        else:
+            print("  ⚠️ PLAN_JSON フェンスなし/不正 — プランタブは markdown 全週パースにフォールバック")
+    except Exception as _e:  # noqa: BLE001
+        print(f"  ⚠️ 月間プラン JSON 抽出に失敗: {_e}")
 
     return coached_label
