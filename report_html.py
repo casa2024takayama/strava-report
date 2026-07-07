@@ -2099,7 +2099,8 @@ html = f"""<!DOCTYPE html>
 (function () {{
   const host = location.hostname;
   const isLocal = host === 'localhost' || host === '127.0.0.1'
-    || host.startsWith('100.') || host.endsWith('.ts.net');
+    || /^100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
+    || host.endsWith('.ts.net');
   const isOnline = host.endsWith('.github.io');
   const edition = isLocal ? 'local' : (isOnline ? 'online' : 'other');
   const banner = document.getElementById('edition-banner');
@@ -2361,7 +2362,8 @@ new Chart(document.getElementById('paceChart'), {{
   const logEl = document.getElementById('update-log');
   const host = location.hostname;
   const isLocal = host === 'localhost' || host === '127.0.0.1'
-    || host.startsWith('100.') || host.endsWith('.ts.net');
+    || /^100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
+    || host.endsWith('.ts.net');
   const isGithubPages = host.endsWith('.github.io');
   const githubPanel = document.getElementById('github-sync-panel');
   const token = {json.dumps(REPORT_SERVER_TOKEN)};

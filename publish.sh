@@ -48,6 +48,21 @@ echo "▶ Step 4: 公開（push）"
 # ※ garmin_daily.csv（生の日次健康データ）は意図的に add しない＝非公開
 # coaching_report_*.md / coach_cache_*.json は公開しない（Garmin月次集計を含むため）。
 # 講評文は index.html に焼き込み済みなので、公開はHTMLとPBデータのみで十分。
+
+# ローカル版のみに埋め込まれる REPORT_SERVER_TOKEN が、online実行で再生成されない
+# 過去月アーカイブHTMLに残ったまま公開されるのを防ぐ（トークン行のみ除去）。
+for f in index.html 20*.html; do
+  [ -f "$f" ] || continue
+  if grep -q 'const token = "[^"]' "$f"; then
+    echo "⚠️ $f にローカル用トークンが混入 — 除去します"
+    sed -i.bak 's/const token = "[^"]*";/const token = "";/' "$f" && rm -f "$f.bak"
+  fi
+done
+if grep -l 'const token = "[^"]' index.html 20*.html 2>/dev/null; then
+  echo "❌ トークンの除去に失敗 — 公開を中止します" >&2
+  exit 1
+fi
+
 git add index.html 20*.html pbs.json races.json publish_meta.json
 if git diff --staged --quiet; then
   echo "（変更なし — push スキップ）"

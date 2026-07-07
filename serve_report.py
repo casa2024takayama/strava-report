@@ -75,20 +75,25 @@ HOST = _resolve_host()
 TOKEN = ""  # main() で _ensure_token() の結果が入る
 
 
-def _ensure_token() -> tuple[str, bool]:
-    """API保護用のトークンを .env から読むか、無ければ生成して .env に追記する。
-
-    戻り値は (token, is_newly_generated)。
-    """
+def _ensure_token() -> str:
+    """API保護用のトークンを .env から読むか、無ければ生成して .env に追記する。"""
     token = os.environ.get("REPORT_SERVER_TOKEN", "").strip()
     if token:
-        return token, False
+        return token
     token = secrets.token_urlsafe(24)
+    # 既存の .env が改行で終わっていない場合、前の行に連結して破損させないよう補正する
+    needs_newline = False
+    if os.path.exists(ENV_FILE) and os.path.getsize(ENV_FILE) > 0:
+        with open(ENV_FILE, "rb") as f:
+            f.seek(-1, os.SEEK_END)
+            needs_newline = f.read(1) != b"\n"
     with open(ENV_FILE, "a") as f:
+        if needs_newline:
+            f.write("\n")
         f.write(f"REPORT_SERVER_TOKEN={token}\n")
     os.environ["REPORT_SERVER_TOKEN"] = token
     print("✓ REPORT_SERVER_TOKEN を新規生成し .env に保存しました", flush=True)
-    return token, True
+    return token
 
 
 def _ensure_venv() -> None:
@@ -357,7 +362,18 @@ class ReportHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def _authorized(self) -> bool:
-        return self.headers.get("X-Report-Token", "") == TOKEN
+        return secrets.compare_digest(self.headers.get("X-Report-Token", ""), TOKEN)
+
+    @staticmethod
+    def _serve_allowed(path: str) -> bool:
+        # ROOT直下には .env / strava_tokens.json / garmin_daily.csv 等の機密が
+        # 実在するため、配信はレポート関連ファイルのみに限定する（許可リスト方式）。
+        name = path.lstrip("/")
+        if name == "":
+            return True  # → index.html
+        if "/" in name:
+            return False  # サブディレクトリは配信しない
+        return name.endswith(".html") or name in ("pbs.json", "races.json")
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
@@ -367,7 +383,17 @@ class ReportHandler(SimpleHTTPRequestHandler):
                 return
             self._send_json(200, _snapshot())
             return
+        if not self._serve_allowed(path):
+            self.send_error(404)
+            return
         super().do_GET()
+
+    def do_HEAD(self) -> None:
+        path = urlparse(self.path).path
+        if not self._serve_allowed(path):
+            self.send_error(404)
+            return
+        super().do_HEAD()
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
@@ -483,7 +509,7 @@ def _server_already_running() -> bool:
 def main() -> None:
     global TOKEN
     _ensure_venv()
-    TOKEN, is_new_token = _ensure_token()
+    TOKEN = _ensure_token()
     open_browser = "--open" in sys.argv
     url = _report_url()
 
@@ -494,11 +520,10 @@ def main() -> None:
             webbrowser.open(url)
         return
 
-    if is_new_token:
-        # 新規トークン生成直後は、既存のindex.htmlに古い(空の)トークンが
-        # 焼き込まれたままなので、サーバー起動前に一度焼き直しておく。
-        print("↻ 新しいトークンをHTMLに反映するため report_html.py を実行します…", flush=True)
-        subprocess.run([_python(), "report_html.py"], cwd=ROOT, env={**os.environ}, check=False)
+    # ディスク上のHTMLは online版(空トークン)や旧トークンで焼かれている可能性がある
+    # (git pull直後・トークン変更後など)。起動前に毎回焼き直して不整合による401を防ぐ。
+    print("↻ トークンをHTMLに反映するため report_html.py を実行します…", flush=True)
+    subprocess.run([_python(), "report_html.py"], cwd=ROOT, env={**os.environ}, check=False)
 
     report_server = ReportServer()
     try:
