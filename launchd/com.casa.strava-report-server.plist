@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  strava-report のローカルレポートサーバーを、Mac起動時（ログイン時）に自動起動し、
+  クラッシュ時は自動再起動するための launchd テンプレート。
+
+  セットアップ手順（Macで一度だけ行う）:
+    1. 下の /REPLACE/WITH/YOUR/REPO/PATH を、実際にリポジトリを clone したパスに書き換える
+       （2箇所: ProgramArguments の serve_report.py のパス、WorkingDirectory）。
+       例: /Users/casatakayama/Projects/strava-report
+    2. 事前に一度 `bash update_report.sh` を手動実行して .venv / .env を作成しておく
+       （.venv が無いと ProgramArguments で指定した python3 が存在しない）。
+    3. このファイルを ~/Library/LaunchAgents/ にコピーする:
+         cp launchd/com.casa.strava-report-server.plist ~/Library/LaunchAgents/
+    4. 読み込んで起動する:
+         launchctl load ~/Library/LaunchAgents/com.casa.strava-report-server.plist
+       （新しいmacOSでは代わりに `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.casa.strava-report-server.plist` でも可）
+    5. ログは /tmp/strava-report-server.log に出力される
+       （永続化したい場合は StandardOutPath/StandardErrorPath を書き換えてください。
+       plist内では ~ は展開されないため、絶対パスで指定すること）。
+
+  停止・再読み込み:
+    launchctl unload ~/Library/LaunchAgents/com.casa.strava-report-server.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.casa.strava-report-server</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/REPLACE/WITH/YOUR/REPO/PATH/.venv/bin/python3</string>
+        <string>/REPLACE/WITH/YOUR/REPO/PATH/serve_report.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/REPLACE/WITH/YOUR/REPO/PATH</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>REPORT_SERVER_HOST</key>
+        <string>auto</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/strava-report-server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/strava-report-server.log</string>
+</dict>
+</plist>

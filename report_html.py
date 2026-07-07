@@ -20,6 +20,16 @@ from coach_common import (
     resolve_ai_weekly_plan,
 )
 
+# ── .env 読み込み ──────────────────────────────────────────────────────────
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path, encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+
 # ── 対象月の決定 ────────────────────────────────────────────────────────────
 _ym_env = os.environ.get("TARGET_YEAR_MONTH", "")
 if _ym_env:
@@ -61,6 +71,9 @@ def detect_report_edition() -> str:
 
 
 REPORT_EDITION = detect_report_edition()
+
+# ローカル版のみ埋め込む（online版がGitHub Pagesにトークンを公開しないようガード）
+REPORT_SERVER_TOKEN = os.environ.get("REPORT_SERVER_TOKEN", "") if REPORT_EDITION == "local" else ""
 
 
 def format_last_fetch_label() -> str | None:
@@ -2085,7 +2098,9 @@ html = f"""<!DOCTYPE html>
 <script>
 (function () {{
   const host = location.hostname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const isLocal = host === 'localhost' || host === '127.0.0.1'
+    || /^100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
+    || host.endsWith('.ts.net');
   const isOnline = host.endsWith('.github.io');
   const edition = isLocal ? 'local' : (isOnline ? 'online' : 'other');
   const banner = document.getElementById('edition-banner');
@@ -2346,9 +2361,13 @@ new Chart(document.getElementById('paceChart'), {{
   const statusText = document.getElementById('update-status-text');
   const logEl = document.getElementById('update-log');
   const host = location.hostname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const isLocal = host === 'localhost' || host === '127.0.0.1'
+    || /^100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
+    || host.endsWith('.ts.net');
   const isGithubPages = host.endsWith('.github.io');
   const githubPanel = document.getElementById('github-sync-panel');
+  const token = {json.dumps(REPORT_SERVER_TOKEN)};
+  const authHeaders = token ? {{ 'X-Report-Token': token }} : {{}};
   let pollTimer = null;
   let activeKind = null;
 
@@ -2405,7 +2424,7 @@ new Chart(document.getElementById('paceChart'), {{
 
   async function pollStatus() {{
     try {{
-      const res = await fetch('/api/status');
+      const res = await fetch('/api/status', {{ headers: authHeaders }});
       const data = await res.json();
       const kind = data.kind || activeKind;
       const isSuccess = data.done && !data.running && !data.error;
@@ -2473,7 +2492,7 @@ new Chart(document.getElementById('paceChart'), {{
     setStatus(startMsg, false, false);
     logEl.textContent = '';
     try {{
-      const res = await fetch(endpoint, {{ method: 'POST' }});
+      const res = await fetch(endpoint, {{ method: 'POST', headers: authHeaders }});
       const data = await res.json();
       if (!data.started) {{
         setStatus(data.message || 'すでに処理が実行中です', false, false);
