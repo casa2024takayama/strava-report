@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import subprocess
 import sys
 import termios
@@ -35,8 +36,64 @@ from urllib.request import urlopen
 ROOT = os.path.dirname(os.path.abspath(__file__))
 VENV_PYTHON = os.path.join(ROOT, ".venv", "bin", "python3")
 REQUIREMENTS = os.path.join(ROOT, "requirements.txt")
+ENV_FILE = os.path.join(ROOT, ".env")
+
+# ── .env 読み込み ──────────────────────────────────────────────────────────
+if os.path.exists(ENV_FILE):
+    with open(ENV_FILE) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+
 PORT = int(os.environ.get("REPORT_SERVER_PORT", "8766"))
 os.environ.setdefault("REPORT_EDITION", "local")
+
+
+def _resolve_host() -> str:
+    """バインド先ホストを決定する（既定は127.0.0.1で現状維持、Tailscale利用時のみ opt-in）。"""
+    raw = os.environ.get("REPORT_SERVER_HOST", "127.0.0.1").strip()
+    if raw in ("", "127.0.0.1"):
+        return "127.0.0.1"
+    if raw == "auto":
+        try:
+            result = subprocess.run(
+                ["tailscale", "ip", "-4"],
+                capture_output=True, text=True, timeout=5, check=True,
+            )
+            ip = result.stdout.strip().splitlines()[0].strip()
+            if ip:
+                return ip
+        except (OSError, subprocess.SubprocessError, IndexError) as e:
+            print(f"⚠️ Tailscale IPの取得に失敗（{e}）— 127.0.0.1にフォールバック", flush=True)
+        return "127.0.0.1"
+    return raw
+
+
+HOST = _resolve_host()
+TOKEN = ""  # main() で _ensure_token() の結果が入る
+
+
+def _ensure_token() -> str:
+    """API保護用のトークンを .env から読むか、無ければ生成して .env に追記する。"""
+    token = os.environ.get("REPORT_SERVER_TOKEN", "").strip()
+    if token:
+        return token
+    token = secrets.token_urlsafe(24)
+    # 既存の .env が改行で終わっていない場合、前の行に連結して破損させないよう補正する
+    needs_newline = False
+    if os.path.exists(ENV_FILE) and os.path.getsize(ENV_FILE) > 0:
+        with open(ENV_FILE, "rb") as f:
+            f.seek(-1, os.SEEK_END)
+            needs_newline = f.read(1) != b"\n"
+    with open(ENV_FILE, "a") as f:
+        if needs_newline:
+            f.write("\n")
+        f.write(f"REPORT_SERVER_TOKEN={token}\n")
+    os.environ["REPORT_SERVER_TOKEN"] = token
+    print("✓ REPORT_SERVER_TOKEN を新規生成し .env に保存しました", flush=True)
+    return token
 
 
 def _ensure_venv() -> None:
@@ -296,6 +353,11 @@ class ReportHandler(SimpleHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         pass
 
+    def end_headers(self) -> None:
+        # ブラウザキャッシュで古いレポートが表示されるのを防ぐ（ローカル閲覧用途）
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        super().end_headers()
+
     def _send_json(self, code: int, payload: dict) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
@@ -304,15 +366,46 @@ class ReportHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _authorized(self) -> bool:
+        return secrets.compare_digest(self.headers.get("X-Report-Token", ""), TOKEN)
+
+    @staticmethod
+    def _serve_allowed(path: str) -> bool:
+        # ROOT直下には .env / strava_tokens.json / garmin_daily.csv 等の機密が
+        # 実在するため、配信はレポート関連ファイルのみに限定する（許可リスト方式）。
+        name = path.lstrip("/")
+        if name == "":
+            return True  # → index.html
+        if "/" in name:
+            return False  # サブディレクトリは配信しない
+        return name.endswith(".html") or name in ("pbs.json", "races.json")
+
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/api/status":
+            if not self._authorized():
+                self.send_error(401)
+                return
             self._send_json(200, _snapshot())
+            return
+        if not self._serve_allowed(path):
+            self.send_error(404)
             return
         super().do_GET()
 
+    def do_HEAD(self) -> None:
+        path = urlparse(self.path).path
+        if not self._serve_allowed(path):
+            self.send_error(404)
+            return
+        super().do_HEAD()
+
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        if path in ("/api/update", "/api/coach", "/api/garmin"):
+            if not self._authorized():
+                self.send_error(401)
+                return
         if path == "/api/update":
             self._send_json(200, start_update())
             return
@@ -326,7 +419,7 @@ class ReportHandler(SimpleHTTPRequestHandler):
 
 
 def _report_url() -> str:
-    return f"http://127.0.0.1:{PORT}/index.html"
+    return f"http://{HOST}:{PORT}/index.html"
 
 
 class ReportServer:
@@ -338,7 +431,7 @@ class ReportServer:
         if self.server is not None:
             return
         try:
-            self.server = ThreadingHTTPServer(("127.0.0.1", PORT), ReportHandler)
+            self.server = ThreadingHTTPServer((HOST, PORT), ReportHandler)
         except OSError:
             self.server = None
             self.thread = None
@@ -408,15 +501,20 @@ def _interactive_loop(report_server: ReportServer, url: str) -> None:
 
 
 def _server_already_running() -> bool:
+    from urllib.request import Request
+
     try:
-        with urlopen(f"http://127.0.0.1:{PORT}/api/status", timeout=1) as resp:
+        req = Request(f"http://{HOST}:{PORT}/api/status", headers={"X-Report-Token": TOKEN})
+        with urlopen(req, timeout=1) as resp:
             return resp.status == 200
     except OSError:
         return False
 
 
 def main() -> None:
+    global TOKEN
     _ensure_venv()
+    TOKEN = _ensure_token()
     open_browser = "--open" in sys.argv
     url = _report_url()
 
@@ -426,6 +524,11 @@ def main() -> None:
         if open_browser:
             webbrowser.open(url)
         return
+
+    # ディスク上のHTMLは online版(空トークン)や旧トークンで焼かれている可能性がある
+    # (git pull直後・トークン変更後など)。起動前に毎回焼き直して不整合による401を防ぐ。
+    print("↻ トークンをHTMLに反映するため report_html.py を実行します…", flush=True)
+    subprocess.run([_python(), "report_html.py"], cwd=ROOT, env={**os.environ}, check=False)
 
     report_server = ReportServer()
     try:

@@ -138,9 +138,25 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # ローカル版トークンが過去コミット経由で混入していた場合に備えて除去する
+          # （publish.sh と同じサニタイズ。online版の正しい出力は const token = "";）
+          for f in index.html 20*.html; do
+            [ -f "$f" ] || continue
+            if grep -q 'const token = "[^"]' "$f"; then
+              echo "⚠️ $f にローカル用トークンが混入 — 除去します"
+              sed -i.bak 's/const token = "[^"]*";/const token = "";/' "$f" && rm -f "$f.bak"
+            fi
+          done
+          if grep -l 'const token = "[^"]' index.html 20*.html 2>/dev/null; then
+            echo "❌ トークンの除去に失敗 — 公開を中止します" >&2
+            exit 1
+          fi
+
           # HTML（当月＋月別アーカイブ）、PBデータ、公開メタ情報をコミット
           # （coaching_report_*.md / coach_cache_*.json は非公開方針のため publish.sh と揃えて除外）
           git add index.html 20*.html pbs.json races.json publish_meta.json
+          git add plan_*.json 2>/dev/null || true   # まだ存在しない場合は無視（set -e 対策）
 
           push_with_retry() {
             local attempt=1 max=5
@@ -157,6 +173,6 @@ jobs:
             done
           }
 
-          git diff --staged --quiet || git commit -m "Update report $(date '+%Y-%m-%d %H:%M') JST"
+          git diff --staged --quiet || git commit -m "Update report $(TZ='Asia/Tokyo' date '+%Y-%m-%d %H:%M JST')"
           push_with_retry
           echo "🌐 Deployed → https://casa2024takayama.github.io/strava-report/"
