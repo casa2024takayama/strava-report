@@ -79,3 +79,14 @@ else
   push_with_retry
   echo "🌐 公開完了 → https://casa2024takayama.github.io/strava-report/"
 fi
+
+echo "▶ Step 5: ローカル閲覧用に local 版へ焼き直し"
+# Step 3 で index.html を online 版（Garmin ボタン等 local 限定 UI なし）に上書きするが、
+# 常駐サーバー serve_report.py は起動時しか焼き直さない（既に起動中なら早期 return）。
+# そのため夜間公開後は Garmin ボタンが消えた online 版をサーバーが配信し続け、
+# スマホでは「ローカル版」バナーだけ出てボタンが無い状態になる。push 済みの online 版は
+# 既にコミット済みなので、ディスク上の index.html／当月アーカイブだけ local 版へ戻す
+# （コミットはしない。次回実行時は Step 3 が再び online 版で上書きする）。
+REPORT_EDITION=local "$PYTHON" report_html.py >/dev/null \
+  && echo "  ローカル版へ焼き直し完了（サーバーが Garmin ボタン付きを配信）" \
+  || echo "⚠️ ローカル版の焼き直し失敗（表示のみ・公開には影響なし）"
