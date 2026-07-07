@@ -59,7 +59,9 @@ GITHUB_WORKFLOW_URL = f"https://github.com/{GITHUB_REPO}/actions/workflows/updat
 GITHUB_PAGES_URL = "https://casa2024takayama.github.io/strava-report/"
 # 「ローカル版」リンク先。スマホから開けるよう REPORT_LOCAL_URL（Tailscale IP 等）で
 # 上書き可能（publish.sh が tailscale ip から自動設定）。既定はMac本体からの 127.0.0.1。
-LOCAL_REPORT_URL = os.environ.get("REPORT_LOCAL_URL", "http://127.0.0.1:8766/index.html")
+# 空文字も既定に倒す（Actions で未登録の vars.REPORT_LOCAL_URL は空文字で渡るため、
+# get のデフォルトでは拾えず href="" になってしまうのを防ぐ）。
+LOCAL_REPORT_URL = os.environ.get("REPORT_LOCAL_URL", "").strip() or "http://127.0.0.1:8766/index.html"
 
 
 def detect_report_edition() -> str:

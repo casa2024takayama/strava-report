@@ -117,6 +117,11 @@ jobs:
         if: steps.guard.outputs.should_publish == 'true'
         env:
           REPORT_EDITION: online
+          # 「ローカル版」リンクをスマホから開けるようにする。未設定なら report_html.py が
+          # 既定の http://127.0.0.1:8766/ を埋め込むため、Actions 公開時はスマホから届かない。
+          # リポジトリ変数 REPORT_LOCAL_URL（例: http://100.x.y.z:8766/index.html）を登録すると
+          # そのリンクが焼き込まれる（未登録なら空文字＝従来どおり 127.0.0.1 の既定にフォールバック）。
+          REPORT_LOCAL_URL: ${{ vars.REPORT_LOCAL_URL }}
         run: python3 report_html.py
 
       - name: Re-check guard before push
