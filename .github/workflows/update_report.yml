@@ -155,7 +155,8 @@ jobs:
 
           # HTML（当月＋月別アーカイブ）、PBデータ、公開メタ情報をコミット
           # （coaching_report_*.md / coach_cache_*.json は非公開方針のため publish.sh と揃えて除外）
-          git add index.html 20*.html pbs.json races.json publish_meta.json plan_*.json
+          git add index.html 20*.html pbs.json races.json publish_meta.json
+          git add plan_*.json 2>/dev/null || true   # まだ存在しない場合は無視（set -e 対策）
 
           push_with_retry() {
             local attempt=1 max=5
