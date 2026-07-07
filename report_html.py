@@ -2448,11 +2448,20 @@ CSS = """
   .edition-banner.edition-other{background:#fef3c7;color:#92400e}
   .rr-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid #E7E5E1}
   .rr-header-inner{max-width:760px;margin:0 auto;padding:0 16px}
-  .rr-header-row1{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 8px;flex-wrap:wrap}
+  .rr-header-row1{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 8px;flex-wrap:wrap;transition:padding .15s ease}
   .rr-title{display:flex;align-items:center;gap:10px}
-  .rr-bar{width:10px;height:22px;background:#FC4C02;border-radius:3px}
-  .rr-month{font-size:19px;font-weight:800;letter-spacing:-.01em}
+  .rr-bar{width:10px;height:22px;background:#FC4C02;border-radius:3px;transition:height .15s ease}
+  .rr-month{font-size:19px;font-weight:800;letter-spacing:-.01em;transition:font-size .15s ease}
   .rr-sub{font-size:12px;color:#78716C;font-weight:600}
+  /* スクロール時の折りたたみ（モバイルでヘッダー面積を圧縮） */
+  .rr-header.rr-collapsed .rr-header-row1{padding:6px 0}
+  .rr-header.rr-collapsed .rr-month{font-size:15px}
+  .rr-header.rr-collapsed .rr-bar{height:16px}
+  .rr-header.rr-collapsed .rr-sub,
+  .rr-header.rr-collapsed .header-actions,
+  .rr-header.rr-collapsed #github-sync-panel,
+  .rr-header.rr-collapsed .month-nav,
+  .rr-header.rr-collapsed .rr-meta{display:none}
   .rr-tabs{display:flex;gap:2px;overflow-x:auto}
   .rr-tab{all:unset;box-sizing:border-box;cursor:pointer;padding:9px 16px 11px;font-size:13.5px;font-weight:700;color:#78716C;white-space:nowrap;border-bottom:3px solid transparent}
   .rr-main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
@@ -2715,6 +2724,23 @@ const DATA = /*__DATA__*/;
   let start = (location.hash||'').replace('#','');
   if (TABS.indexOf(start) < 0){ try { start = localStorage.getItem('rr2-tab') || 'today'; } catch(e){ start = 'today'; } }
   setTab(start);
+
+  // スクロールでヘッダーを折りたたむ（モバイルで面積を圧縮。ヒステリシスでちらつき防止）
+  (function(){
+    const header = document.querySelector('.rr-header');
+    if (!header) return;
+    let collapsed = false, ticking = false;
+    function apply(){
+      ticking = false;
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const want = collapsed ? (y > 60) : (y > 110);
+      if (want !== collapsed){ collapsed = want; header.classList.toggle('rr-collapsed', collapsed); }
+    }
+    window.addEventListener('scroll', function(){
+      if (!ticking){ ticking = true; window.requestAnimationFrame(apply); }
+    }, { passive: true });
+    apply();
+  })();
 })();
 """
 
