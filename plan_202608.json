@@ -1,262 +1,248 @@
 {
   "month": "2026-08",
   "goal_km": 200,
-  "overview": "レースなし・練習走のみで月間200km達成を目指す。7月の高強度偏重を修正し、Eゾーン80%以上を徹底。週1回のロング走と週1〜2回のクオリティセッション（T/I）で有酸素ベースとVDOTを段階的に向上させる。",
+  "overview": "有酸素基礎の再構築と練習頻度の定着がテーマ。Eゾーン（HR147bpm以下）を80%以上に維持し、週5日・週40kmを安定的に消化する。クオリティ練習（T・I）は週1回以内に抑制し、同日2本走・連日高強度を排除して適切な回復を確保する。",
   "weeks": [
     {
       "num": 1,
-      "range": "8/1〜8/3",
-      "theme": "ベース再構築",
-      "target_km": 25,
+      "range": "8/3〜8/9",
+      "theme": "頻度定着・Eゾーン徹底",
+      "target_km": 40,
       "days": [
-        {
-          "date": "8/1",
-          "dow": "土",
-          "zone": "E",
-          "dist": "10km",
-          "desc": "イージー 6:00〜6:20/km、フラット、会話できるペース"
-        },
-        {
-          "date": "8/2",
-          "dow": "日",
-          "zone": "ロングE",
-          "dist": "15km",
-          "desc": "ロング走 6:10〜6:30/km、均一ペース維持"
-        },
         {
           "date": "8/3",
           "dow": "月",
           "zone": "休養",
           "dist": "—",
-          "desc": "完全休養またはストレッチ"
-        }
-      ]
-    },
-    {
-      "num": 2,
-      "range": "8/4〜8/10",
-      "theme": "有酸素ベース強化",
-      "target_km": 45,
-      "days": [
+          "desc": "完全休養または軽いストレッチ"
+        },
         {
           "date": "8/4",
           "dow": "火",
           "zone": "E",
-          "dist": "10km",
-          "desc": "イージー 6:00〜6:20/km"
+          "dist": "8km",
+          "desc": "イージー HR145bpm以下・6:00〜6:30/km目安"
         },
         {
           "date": "8/5",
           "dow": "水",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養"
+          "zone": "E+坂",
+          "dist": "10km",
+          "desc": "イージー HR145bpm以下・起伏コース可"
         },
         {
           "date": "8/6",
           "dow": "木",
           "zone": "T",
           "dist": "10km",
-          "desc": "W-up 3km E + テンポ4km（4:50〜5:00/km）+ C-down 3km E"
+          "desc": "W-up 2km＋テンポ6km（4:20〜4:30/km・HR165〜174bpm）＋C-down 2km"
         },
         {
           "date": "8/7",
           "dow": "金",
           "zone": "休養",
           "dist": "—",
-          "desc": "完全休養またはジョグ30分"
+          "desc": "完全休養または軽いウォーク"
         },
         {
           "date": "8/8",
           "dow": "土",
           "zone": "E",
-          "dist": "10km",
-          "desc": "イージー 6:00〜6:10/km"
+          "dist": "5km",
+          "desc": "軽めイージー・回復走 HR140bpm以下"
         },
         {
           "date": "8/9",
           "dow": "日",
           "zone": "ロングE",
-          "dist": "15km",
-          "desc": "ロング走 6:10〜6:30/km"
-        },
+          "dist": "7km",
+          "desc": "ロング走 E強度厳守 HR145bpm以下・6:00〜6:30/km"
+        }
+      ]
+    },
+    {
+      "num": 2,
+      "range": "8/10〜8/16",
+      "theme": "基礎量積み上げ",
+      "target_km": 40,
+      "days": [
         {
           "date": "8/10",
           "dow": "月",
           "zone": "休養",
           "dist": "—",
           "desc": "完全休養"
-        }
-      ]
-    },
-    {
-      "num": 3,
-      "range": "8/11〜8/17",
-      "theme": "有酸素強化＋スピード刺激",
-      "target_km": 45,
-      "days": [
+        },
         {
           "date": "8/11",
           "dow": "火",
           "zone": "E",
-          "dist": "10km",
-          "desc": "イージー 6:00〜6:20/km"
+          "dist": "8km",
+          "desc": "イージー HR145bpm以下・6:00/km目安"
         },
         {
           "date": "8/12",
           "dow": "水",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養"
+          "zone": "E+坂",
+          "dist": "10km",
+          "desc": "起伏コース・E強度維持・坂でHR上がったら歩いて可"
         },
         {
           "date": "8/13",
           "dow": "木",
           "zone": "I",
           "dist": "10km",
-          "desc": "W-up 3km + 1km×4本（4:10〜4:20/km）レスト2分 + C-down 3km"
+          "desc": "W-up 3km＋400m×8本（3:55〜4:05/km・回復200mジョグ）＋C-down 3km"
         },
         {
           "date": "8/14",
           "dow": "金",
-          "zone": "E",
-          "dist": "8km",
-          "desc": "リカバリー走 6:20〜6:40/km、軽め"
-        },
-        {
-          "date": "8/15",
-          "dow": "土",
           "zone": "休養",
           "dist": "—",
           "desc": "完全休養"
         },
         {
+          "date": "8/15",
+          "dow": "土",
+          "zone": "E",
+          "dist": "5km",
+          "desc": "軽いイージー・脚の感覚確認"
+        },
+        {
           "date": "8/16",
           "dow": "日",
           "zone": "ロングE",
-          "dist": "17km",
-          "desc": "ロング走 6:10〜6:20/km、後半ペースアップ不要"
-        },
+          "dist": "7km",
+          "desc": "ロング走 E強度 HR145bpm以下"
+        }
+      ]
+    },
+    {
+      "num": 3,
+      "range": "8/17〜8/23",
+      "theme": "有酸素強化・ロング走延長",
+      "target_km": 40,
+      "days": [
         {
           "date": "8/17",
           "dow": "月",
           "zone": "休養",
           "dist": "—",
           "desc": "完全休養"
-        }
-      ]
-    },
-    {
-      "num": 4,
-      "range": "8/18〜8/24",
-      "theme": "強度・量ピーク",
-      "target_km": 45,
-      "days": [
+        },
         {
           "date": "8/18",
           "dow": "火",
           "zone": "E",
-          "dist": "10km",
-          "desc": "イージー 6:00〜6:10/km"
+          "dist": "8km",
+          "desc": "イージー HR145bpm以下"
         },
         {
           "date": "8/19",
           "dow": "水",
-          "zone": "T",
+          "zone": "E",
           "dist": "10km",
-          "desc": "W-up 3km + テンポ5km（4:45〜5:00/km）+ C-down 2km"
+          "desc": "イージー・ペースよりHR管理を優先"
         },
         {
           "date": "8/20",
           "dow": "木",
+          "zone": "T",
+          "dist": "10km",
+          "desc": "W-up 2km＋テンポ8km（4:20〜4:30/km・HR165〜174bpm）＋C-down 2km"
+        },
+        {
+          "date": "8/21",
+          "dow": "金",
           "zone": "休養",
           "dist": "—",
           "desc": "完全休養"
         },
         {
-          "date": "8/21",
-          "dow": "金",
-          "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 6:10〜6:20/km"
-        },
-        {
           "date": "8/22",
           "dow": "土",
-          "zone": "I",
-          "dist": "10km",
-          "desc": "W-up 3km + 1km×4本（4:05〜4:15/km）レスト90秒 + C-down 3km"
+          "zone": "E",
+          "dist": "4km",
+          "desc": "軽めジョグ・回復確認 HR140bpm以下"
         },
         {
           "date": "8/23",
           "dow": "日",
           "zone": "ロングE",
-          "dist": "17km",
-          "desc": "ロング走 6:00〜6:20/km"
-        },
+          "dist": "8km",
+          "desc": "ロング走 E強度 HR145bpm以下・距離を前週より延長"
+        }
+      ]
+    },
+    {
+      "num": 4,
+      "range": "8/24〜8/30",
+      "theme": "刺激維持・回復調整",
+      "target_km": 40,
+      "days": [
         {
           "date": "8/24",
           "dow": "月",
           "zone": "休養",
           "dist": "—",
           "desc": "完全休養"
-        }
-      ]
-    },
-    {
-      "num": 5,
-      "range": "8/25〜8/31",
-      "theme": "調整・振り返り",
-      "target_km": 40,
-      "days": [
+        },
         {
           "date": "8/25",
           "dow": "火",
           "zone": "E",
-          "dist": "10km",
-          "desc": "イージー 6:00〜6:20/km"
+          "dist": "8km",
+          "desc": "イージー HR145bpm以下"
         },
         {
           "date": "8/26",
           "dow": "水",
-          "zone": "T",
-          "dist": "9km",
-          "desc": "W-up 2km + テンポ5km（4:50/km）+ C-down 2km"
+          "zone": "E+坂",
+          "dist": "10km",
+          "desc": "起伏コース・E強度維持"
         },
         {
           "date": "8/27",
           "dow": "木",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養"
+          "zone": "I",
+          "dist": "10km",
+          "desc": "W-up 3km＋600m×6本（Iペース・回復300mジョグ）＋C-down 3km"
         },
         {
           "date": "8/28",
           "dow": "金",
-          "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 6:10〜6:30/km"
+          "zone": "休養",
+          "dist": "—",
+          "desc": "完全休養"
         },
         {
           "date": "8/29",
           "dow": "土",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養"
+          "zone": "E",
+          "dist": "5km",
+          "desc": "軽いイージー HR140bpm以下"
         },
         {
           "date": "8/30",
           "dow": "日",
           "zone": "ロングE",
-          "dist": "13km",
-          "desc": "ロング走 6:10〜6:30/km、余裕あれば延長可"
-        },
+          "dist": "7km",
+          "desc": "ロング走 E強度 HR145bpm以下"
+        }
+      ]
+    },
+    {
+      "num": 5,
+      "range": "8/31〜8/31",
+      "theme": "月間締め",
+      "target_km": 40,
+      "days": [
         {
           "date": "8/31",
           "dow": "月",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養・月間振り返り"
+          "zone": "E",
+          "dist": "10km",
+          "desc": "イージー・8月の締めくくり HR145bpm以下（残距離に応じて調整）"
         }
       ]
     }
