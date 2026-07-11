@@ -19,6 +19,7 @@ Strava レポート用ローカル HTTP サーバー
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import secrets
@@ -51,28 +52,58 @@ PORT = int(os.environ.get("REPORT_SERVER_PORT", "8766"))
 os.environ.setdefault("REPORT_EDITION", "local")
 
 
-def _resolve_host() -> str:
-    """バインド先ホストを決定する（既定は127.0.0.1で現状維持、Tailscale利用時のみ opt-in）。"""
+def _tailscale_ip() -> str | None:
+    """`tailscale ip -4` の先頭アドレスを返す。取得できなければ None。"""
+    try:
+        result = subprocess.run(
+            ["tailscale", "ip", "-4"],
+            capture_output=True, text=True, timeout=5, check=True,
+        )
+        ip = result.stdout.strip().splitlines()[0].strip()
+        return ip or None
+    except (OSError, subprocess.SubprocessError, IndexError) as e:
+        print(f"⚠️ Tailscale IPの取得に失敗（{e}）— 127.0.0.1にフォールバック", flush=True)
+        return None
+
+
+def _resolve_binding() -> tuple[str, str, bool]:
+    """(BIND_HOST, ADVERT_HOST, RESTRICT_TO_TAILSCALE) を決定する。
+
+    バインド先と「広告アドレス（URL表示・自己検出用）」を分離する。特定IPに直接
+    バインドすると、スリープ復帰やTailscale再接続でそのIPのインターフェースが
+    消えた際にソケットが宙ぶらりんになり、listen したまま応答しなくなる。これを
+    避けるため auto/0.0.0.0 では 0.0.0.0 にバインドし（インターフェースに紐付かない）、
+    接続元IPを Tailscale + ループバックのみに制限してLANへの露出を防ぐ。
+    """
     raw = os.environ.get("REPORT_SERVER_HOST", "127.0.0.1").strip()
     if raw in ("", "127.0.0.1"):
-        return "127.0.0.1"
-    if raw == "auto":
-        try:
-            result = subprocess.run(
-                ["tailscale", "ip", "-4"],
-                capture_output=True, text=True, timeout=5, check=True,
-            )
-            ip = result.stdout.strip().splitlines()[0].strip()
-            if ip:
-                return ip
-        except (OSError, subprocess.SubprocessError, IndexError) as e:
-            print(f"⚠️ Tailscale IPの取得に失敗（{e}）— 127.0.0.1にフォールバック", flush=True)
-        return "127.0.0.1"
-    return raw
+        return "127.0.0.1", "127.0.0.1", False
+    if raw in ("auto", "0.0.0.0"):
+        # 0.0.0.0 にバインド（IP消失に強い）＋接続元制限で実質 Tailscale 限定を維持
+        return "0.0.0.0", (_tailscale_ip() or "127.0.0.1"), True
+    # 明示的な特定IP指定は意図を尊重してそのまま（制限なし）
+    return raw, raw, False
 
 
-HOST = _resolve_host()
+BIND_HOST, ADVERT_HOST, RESTRICT_TO_TAILSCALE = _resolve_binding()
 TOKEN = ""  # main() で _ensure_token() の結果が入る
+
+# 接続元の許可レンジ（Tailscale CGNAT v4 / Tailscale ULA v6）。
+_TS_V4 = ipaddress.ip_network("100.64.0.0/10")
+_TS_V6 = ipaddress.ip_network("fd7a:115c:a1e0::/48")
+
+
+def _client_allowed(ip: str) -> bool:
+    """接続元IPが許可対象か。RESTRICT_TO_TAILSCALE が False なら常に許可。"""
+    if not RESTRICT_TO_TAILSCALE:
+        return True
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    if addr.is_loopback:
+        return True
+    return (addr in _TS_V4) if addr.version == 4 else (addr in _TS_V6)
 
 
 def _ensure_token() -> str:
@@ -419,7 +450,14 @@ class ReportHandler(SimpleHTTPRequestHandler):
 
 
 def _report_url() -> str:
-    return f"http://{HOST}:{PORT}/index.html"
+    return f"http://{ADVERT_HOST}:{PORT}/index.html"
+
+
+class _RestrictedHTTPServer(ThreadingHTTPServer):
+    """accept 時点で接続元IPを検査し、許可外はハンドラに渡さず閉じる。"""
+
+    def verify_request(self, request, client_address) -> bool:  # noqa: ANN001
+        return _client_allowed(client_address[0])
 
 
 class ReportServer:
@@ -431,7 +469,7 @@ class ReportServer:
         if self.server is not None:
             return
         try:
-            self.server = ThreadingHTTPServer((HOST, PORT), ReportHandler)
+            self.server = _RestrictedHTTPServer((BIND_HOST, PORT), ReportHandler)
         except OSError:
             self.server = None
             self.thread = None
@@ -503,8 +541,10 @@ def _interactive_loop(report_server: ReportServer, url: str) -> None:
 def _server_already_running() -> bool:
     from urllib.request import Request
 
+    # 0.0.0.0 バインド時は HOST宛てに叩けないためループバックで自己検出する。
+    probe = "127.0.0.1" if BIND_HOST in ("0.0.0.0", "127.0.0.1") else BIND_HOST
     try:
-        req = Request(f"http://{HOST}:{PORT}/api/status", headers={"X-Report-Token": TOKEN})
+        req = Request(f"http://{probe}:{PORT}/api/status", headers={"X-Report-Token": TOKEN})
         with urlopen(req, timeout=1) as resp:
             return resp.status == 200
     except OSError:
@@ -544,6 +584,8 @@ def main() -> None:
         raise
 
     print(f"🏃 Strava レポートサーバー: {url}")
+    if RESTRICT_TO_TAILSCALE:
+        print(f"   bind {BIND_HOST}:{PORT}（Tailscale + localhost からの接続のみ許可）", flush=True)
     if open_browser:
         webbrowser.open(url)
 
