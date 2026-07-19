@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import html
 import os
+import re
 import subprocess
 import sys
 
@@ -28,6 +29,96 @@ from coach_common import load_env, parse_coach_meta_from_md, resolve_month
 
 load_env()
 PORT = os.environ.get("REPORT_SERVER_PORT", "8766")
+
+_JSON_FENCE_RE = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
+_TABLE_SEP_RE = re.compile(r":?-{2,}:?")
+
+
+def _inline(s: str) -> str:
+    """1行分のインライン整形（エスケープ + **強調**）。"""
+    s = html.escape(s)
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
+
+
+def _table_html(rows: list[str]) -> str:
+    cells = [[c.strip() for c in r.strip().strip("|").split("|")] for r in rows]
+    body = [r for r in cells
+            if not all(c == "" or _TABLE_SEP_RE.fullmatch(c) for c in r)]
+    if not body:
+        return ""
+    head, rest = body[0], body[1:]
+    h = "<tr>" + "".join(f"<th>{_inline(c)}</th>" for c in head) + "</tr>"
+    b = "".join("<tr>" + "".join(f"<td>{_inline(c)}</td>" for c in r) + "</tr>"
+                for r in rest)
+    return f'<div class="tblwrap"><table>{h}{b}</table></div>'
+
+
+def _md_chunk_to_html(chunk: str) -> str:
+    """軽量Markdown→HTML（見出し/テーブル/リスト/区切り線/段落）。"""
+    lines = chunk.split("\n")
+    out: list[str] = []
+    para: list[str] = []
+    in_ul = False
+    i = 0
+
+    def flush_para() -> None:
+        if para:
+            out.append("<p>" + "<br>".join(para) + "</p>")
+            para.clear()
+
+    def close_ul() -> None:
+        nonlocal in_ul
+        if in_ul:
+            out.append("</ul>")
+            in_ul = False
+
+    while i < len(lines):
+        s = lines[i].strip()
+        if s.startswith("|") and s.endswith("|"):
+            flush_para(); close_ul()
+            rows = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                rows.append(lines[i])
+                i += 1
+            out.append(_table_html(rows))
+            continue
+        if not s:
+            flush_para(); close_ul()
+        elif s.startswith("#"):
+            flush_para(); close_ul()
+            level = len(s) - len(s.lstrip("#"))
+            out.append(("<h3>" if level <= 2 else "<h4>")
+                       + _inline(s.lstrip("#").strip())
+                       + ("</h3>" if level <= 2 else "</h4>"))
+        elif s.startswith("- "):
+            flush_para()
+            if not in_ul:
+                out.append("<ul>")
+                in_ul = True
+            out.append("<li>" + _inline(s[2:]) + "</li>")
+        elif s in ("---", "***"):
+            flush_para(); close_ul()
+            out.append("<hr>")
+        else:
+            para.append(_inline(s))
+        i += 1
+    flush_para()
+    close_ul()
+    return "".join(out)
+
+
+def _md_to_html(md: str) -> str:
+    """講評md全体をHTMLへ。```json（PLAN_JSON）は折りたたみに隔離する。"""
+    out: list[str] = []
+    last = 0
+    for m in _JSON_FENCE_RE.finditer(md):
+        out.append(_md_chunk_to_html(md[last:m.start()]))
+        out.append('<details class="plan-json"><summary>PLAN_JSON'
+                   '（プランタブ用の構造化データ・タップで表示）</summary><pre>'
+                   + html.escape(m.group(1)) + "</pre></details>")
+        last = m.end()
+    out.append(_md_chunk_to_html(md[last:]))
+    return "".join(out)
 
 
 def _coach_body(md_path: str) -> str:
@@ -61,8 +152,8 @@ def _advert_host() -> str:
 
 
 def build_compare_html(yyyymm: str, claude_md: str, grok_md: str, out_html: str) -> None:
-    claude_body = html.escape(_coach_body(claude_md))
-    grok_body = html.escape(_coach_body(grok_md))
+    claude_body = _md_to_html(_coach_body(claude_md))
+    grok_body = _md_to_html(_coach_body(grok_md))
     claude_meta = html.escape(_meta_line(claude_md))
     grok_meta = html.escape(_meta_line(grok_md))
     title = f"AIコーチ比較 — {yyyymm[:4]}年{int(yyyymm[4:])}月"
@@ -92,8 +183,25 @@ def build_compare_html(yyyymm: str, claude_md: str, grok_md: str, out_html: str)
                 border-bottom: 1px solid #e7e5e4; }}
   .col.claude h2 {{ background: #b45309; }}
   .col.grok h2 {{ background: #1c1917; }}
-  .body {{ padding: 12px 14px; font-size: 13.5px; line-height: 1.75;
-           white-space: pre-wrap; overflow-x: auto; }}
+  .body {{ padding: 12px 14px; font-size: 13.5px; line-height: 1.75; }}
+  .body h3 {{ margin: 16px 0 6px; font-size: 15px; padding-left: 8px;
+              border-left: 4px solid #FC4C02; }}
+  .body h4 {{ margin: 14px 0 4px; font-size: 13.5px; color: #9a3412; }}
+  .body p {{ margin: 6px 0; }}
+  .body ul {{ margin: 6px 0; padding-left: 20px; }}
+  .body li {{ margin: 3px 0; }}
+  .body hr {{ border: none; border-top: 1px solid #e7e5e4; margin: 12px 0; }}
+  .tblwrap {{ overflow-x: auto; margin: 8px 0; }}
+  .body table {{ border-collapse: collapse; width: 100%; font-size: 12px;
+                 white-space: nowrap; }}
+  .body th {{ background: #f5f5f4; color: #57534e; font-weight: 600;
+              padding: 5px 8px; border: 1px solid #e7e5e4; text-align: left; }}
+  .body td {{ padding: 5px 8px; border: 1px solid #e7e5e4; }}
+  .plan-json {{ margin: 12px 0; }}
+  .plan-json summary {{ cursor: pointer; font-size: 12px; color: #78716c;
+                        background: #f5f5f4; padding: 6px 10px; border-radius: 8px; }}
+  .plan-json pre {{ font-size: 11px; overflow-x: auto; background: #1c1917;
+                    color: #e7e5e4; padding: 10px; border-radius: 8px; }}
 </style>
 </head>
 <body>
