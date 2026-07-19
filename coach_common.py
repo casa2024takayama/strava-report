@@ -773,7 +773,14 @@ def save_coaching_report(
     response: str,
     model_label: str,
     output_md: str,
+    update_cache: bool = True,
 ) -> str:
+    """コーチング結果を保存する。
+
+    update_cache=False は「比較用の別バックエンド実行」向け: markdown の保存と
+    書式チェックは行うが、last_coach.json（最終AI評価表示）と plan_<YYYYMM>.json
+    （プランタブ）には触れない＝本番（Claude）の状態を汚さない。
+    """
     today = date.today()
     coached_at = datetime.now()
     coached_label = coached_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -786,21 +793,22 @@ def save_coaching_report(
     with open(output_md, "w", encoding="utf-8") as f:
         f.write(content)
 
-    cache_dir = ".strava_cache"
-    os.makedirs(cache_dir, exist_ok=True)
-    with open(os.path.join(cache_dir, "last_coach.json"), "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "at": coached_at.isoformat(timespec="seconds"),
-                "label": coached_label,
-                "month": f"{year}{month:02d}",
-                "model": model_label,
-                "report": output_md,
-            },
-            f,
-            ensure_ascii=False,
-            indent=2,
-        )
+    if update_cache:
+        cache_dir = ".strava_cache"
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(os.path.join(cache_dir, "last_coach.json"), "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "at": coached_at.isoformat(timespec="seconds"),
+                    "label": coached_label,
+                    "month": f"{year}{month:02d}",
+                    "model": model_label,
+                    "report": output_md,
+                },
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
 
     # ── 翌月プランの自動解析チェック（週次メニュー供給の要）──────────────
     # 生成結果が想定書式どおりか＝週次メニューが正しく抽出できるかを保存時に検査。
@@ -822,14 +830,16 @@ def save_coaching_report(
 
     # ── 月間プラン JSON（PLAN_JSON フェンス）の抽出・保存 ──────────────────
     # plan_<翌YYYYMM>.json を生成（プランタブの5週フル表示用。健康データ非含有）。
-    try:
-        plan = extract_plan_json(response)
-        if plan:
-            p = write_month_plan(plan)
-            print(f"  ✓ 月間プラン JSON を保存: {p}（{len(plan['weeks'])} 週）")
-        else:
-            print("  ⚠️ PLAN_JSON フェンスなし/不正 — プランタブは markdown 全週パースにフォールバック")
-    except Exception as _e:  # noqa: BLE001
-        print(f"  ⚠️ 月間プラン JSON 抽出に失敗: {_e}")
+    # update_cache=False（比較実行）では保存しない＝本番プランを上書きしない。
+    if update_cache:
+        try:
+            plan = extract_plan_json(response)
+            if plan:
+                p = write_month_plan(plan)
+                print(f"  ✓ 月間プラン JSON を保存: {p}（{len(plan['weeks'])} 週）")
+            else:
+                print("  ⚠️ PLAN_JSON フェンスなし/不正 — プランタブは markdown 全週パースにフォールバック")
+        except Exception as _e:  # noqa: BLE001
+            print(f"  ⚠️ 月間プラン JSON 抽出に失敗: {_e}")
 
     return coached_label

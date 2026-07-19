@@ -21,6 +21,10 @@ report_*.md
 # coaching_report_*.md は GitHub Pages 用にコミットする
 .strava_cache/
 
+# AIコーチ比較（Grok・ローカル専用・非公開の生成物）
+coaching_report_*_grok.md
+compare_*.html
+
 # ログ
 *.log
 
