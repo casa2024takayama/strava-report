@@ -29,7 +29,8 @@ if [ "$(date +%-d)" -le 3 ]; then
   PREV_YM="$(date -v-1m '+%Y-%m' 2>/dev/null || date -d 'last month' '+%Y-%m')"
 fi
 if [ -n "$PREV_YM" ]; then
-  echo "▶ Step 1.5: 月初につき前月（$PREV_YM）を再取得（月末ラン取りこぼし対策）"
+  # ※ ${} 必須: 直後が全角文字だと bash 3.2 (macOS) が変数名を誤解釈し set -u で落ちる
+  echo "▶ Step 1.5: 月初につき前月（${PREV_YM}）を再取得（月末ラン取りこぼし対策）"
   TARGET_YEAR_MONTH="$PREV_YM" "$PYTHON" strava_fetch.py \
     || { echo "⚠️ 前月の再取得に失敗（前月アーカイブは更新せず続行）"; PREV_YM=""; }
 fi
@@ -52,7 +53,7 @@ fi
 # 前月→当月の順で焼く（report_html.py はアーカイブと index.html の両方を書くため、
 # 前月を先に焼き、最後の当月実行で index.html を正しい月に戻す）。
 if [ -n "$PREV_YM" ]; then
-  echo "  前月アーカイブ（$PREV_YM）を焼き直し"
+  echo "  前月アーカイブ（${PREV_YM}）を焼き直し"
   REPORT_EDITION=online TARGET_YEAR_MONTH="$PREV_YM" "$PYTHON" report_html.py
 fi
 REPORT_EDITION=online "$PYTHON" report_html.py
