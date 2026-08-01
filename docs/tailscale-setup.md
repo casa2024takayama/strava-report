@@ -59,7 +59,8 @@ REPORT_SERVER_HOST=auto bash -c 'cd /path/to/strava-report && .venv/bin/python3 
    ```
 
 launchdで起動すると、ログイン時に自動でサーバーが立ち上がり、クラッシュ時も自動再起動する。
-Macがスリープ/シャットダウンしている間はもちろんアクセスできない。
+Macがスリープ/シャットダウンしている間はもちろんアクセスできない。スリープ対策と、
+繋がらないときの切り分けは [mac-sleep-and-access.md](mac-sleep-and-access.md) を参照。
 
 ## 5. スマホからアクセスする
 
@@ -71,8 +72,12 @@ http://<Macのtailscale-ip>:8766/index.html
 
 ## セキュリティに関する注意
 
-- `serve_report.py`は`REPORT_SERVER_HOST=auto`のとき、Tailscaleの`100.x.y.z`アドレスにのみ
-  バインドします（`0.0.0.0`ではないので、自宅Wi-Fi等の同一LAN上の他デバイスからは見えません）。
+- `serve_report.py`は`REPORT_SERVER_HOST=auto`のとき、`0.0.0.0`にバインドした上で、
+  接続元IPをTailscaleのレンジ（`100.64.0.0/10`, `fd7a:115c:a1e0::/48`）とループバックのみに
+  制限します（`_client_allowed` / `verify_request`）。特定IPへのバインドはスリープ復帰や
+  Tailscale再接続でそのIPが消えるとソケットが応答しなくなるため、この方式を採っています。
+  結果として、自宅Wi-Fi等の同一LAN上の他デバイスからは接続できません（`lsof`では`*:8766`と
+  表示されますが、LANからの接続は接続段階で拒否されます）。
 - `/api/update`・`/api/coach`・`/api/garmin`・`/api/status`はトークン認証で保護されていますが、
   これは「誤って外部に晒された場合の多層防御」であり、tailnetに参加できる端末（＝あなたが
   許可した端末）は引き続き正規にアクセスできます。tailnetへの招待は慎重に。
