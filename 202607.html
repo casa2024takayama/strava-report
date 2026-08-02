@@ -91,7 +91,7 @@
   const edition = isLocal ? 'local' : (isOnline ? 'online' : 'other');
   const banner = document.getElementById('edition-banner');
   const onlineUrl = "https://casa2024takayama.github.io/strava-report/";
-  const localUrl = "http://100.102.14.59:8766/index.html";
+  const localUrl = "http://127.0.0.1:8766/index.html";
   const baseTitle = document.title.replace(/ \[(ローカル|オンライン)\]/g, '');
   if (!banner) return;
   if (edition === 'local') {
@@ -139,8 +139,8 @@
 <a href="index.html" class="back-latest">↑ 最新データへ</a>
     </div>
     <div class="rr-meta">
-      <p class="last-fetch ok" id="last-fetch-msg">✓ 最終データ取得: 2026-08-02 10:11:28</p>
-      <p class="last-garmin ok" id="last-garmin-msg">✓ Garmin 取得: 2026-08-02 10:11:25</p>
+      <p class="last-fetch ok" id="last-fetch-msg">✓ 最終データ取得: 2026-08-03 06:42:33</p>
+      <p class="last-garmin ok" id="last-garmin-msg">✓ Garmin 取得: 2026-08-03 06:42:30</p>
       <p class="last-coach stale" id="last-coach-msg">✓ 最終 AI 評価: 2026-07-11 17:10:57（claude-sonnet-4-6（Claude API））</p><p class="last-coach-warn" id="last-coach-warn">⚠️ AI 評価が古いです（7 件時点 → 現在 25 件） — 「AI 評価」または「データ更新」で再生成してください</p>
     </div>
     <div class="update-status" id="update-status">
