@@ -102,6 +102,15 @@ int8 / 量子化版なら現実的な時間で生成できます。
 
 ## トラブルシューティング
 
+- **`.\minimax_h3.ps1` が「スクリプトの実行が無効になっているため…」等で動かない** —
+  Windows の初期設定では .ps1 の直接実行が禁止されています。次のどちらかで解決:
+  - `minimax_h3.bat` を使う（ダブルクリック、または PowerShell で `.\minimax_h3.bat`）。
+    ポリシーを変えずに内部で回避して実行します
+  - 一度だけ実行を許可する:
+    ```powershell
+    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+    ```
+
 - **起動に失敗する** — ログは `/tmp/comfyui-minimax-h3.log`（スクリプトが末尾を表示します）
 - **テンプレートに MiniMax H3 が出ない** — ComfyUI が古い可能性。`bash minimax_h3.sh --update`
 - **ポート競合** — `COMFYUI_PORT=8189 bash minimax_h3.sh`
