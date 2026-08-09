@@ -35,6 +35,46 @@ ComfyUI 本体の更新もまとめて行う場合:
 bash minimax_h3.sh --update
 ```
 
+## Mac からのリモート起動（同じ家の Windows で動かす）
+
+MiniMax H3 本体は Windows 側で動かしたまま、Mac から起動〜閲覧できます。
+
+```bash
+bash minimax_h3_remote.sh
+```
+
+- Windows の ComfyUI が起動済みなら Mac のブラウザで開くだけ
+- 未起動なら SSH 経由で `minimax_h3.ps1 -Lan` を実行し、起動を待って開く
+
+### 初回セットアップ
+
+1. **Windows を Tailscale に参加させる**（スマホ・Mac と同じ tailnet。
+   自宅 Wi-Fi の IP でも動くが、Tailscale ならスリープ復帰後も IP が変わらない）
+2. **Windows で OpenSSH サーバーを有効化**：
+   設定 > システム > オプション機能 > 機能の追加 > 「OpenSSH サーバー」
+   → PowerShell（管理者）で:
+   ```powershell
+   Start-Service sshd
+   Set-Service sshd -StartupType Automatic
+   ```
+3. **Windows にこのリポジトリを clone**（`minimax_h3.ps1` を使うため）
+4. **Mac の `.env` に接続先を追記**：
+   ```
+   MINIMAX_H3_HOST=<WindowsのTailscale名または100.x.y.z>
+   MINIMAX_H3_SSH=<Windowsのユーザー名>@<同上>
+   MINIMAX_H3_WIN_DIR=strava-report   # clone 先がホーム直下以外なら変更
+   ```
+5. パスワード入力を省くには `ssh-copy-id` で Mac の公開鍵を Windows に登録
+   （管理者ユーザーの場合は `C:\ProgramData\ssh\administrators_authorized_keys` に追記）
+
+初回起動時に Windows ファイアウォールのダイアログが出たら「アクセスを許可」して
+ください。`-Lan` は `0.0.0.0` で listen しますが、Tailscale 利用なら tailnet 外から
+到達される心配はありません（自宅ルーターがポート開放をしていない前提）。
+
+※ SSH 経由で起動した ComfyUI がセッション切断後に終了してしまう環境では、
+Windows 側で一度 `minimax_h3.bat` をダブルクリックして常駐させておけば、
+以後 Mac からは「開くだけ」で使えます。
+
 ## 環境変数
 
 | 変数 | 既定 | 用途 |
