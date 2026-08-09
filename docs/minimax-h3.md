@@ -6,6 +6,19 @@ ComfyUI がネイティブ対応しています（ComfyUI **0.30.0 以降**、�
 
 ## ふだんの起動
 
+**Windows** — エクスプローラーで `minimax_h3.bat` をダブルクリック、
+または PowerShell で:
+
+```powershell
+.\minimax_h3.ps1           # 起動してブラウザを開く
+.\minimax_h3.ps1 -Update   # ComfyUI を更新してから起動
+```
+
+ポータブル版（`ComfyUI_windows_portable`、`python_embeded` 同梱）も自動検出します。
+場所が特殊な場合は `$env:COMFYUI_DIR = "C:\path\to\ComfyUI"` を設定してください。
+
+**macOS / Linux**:
+
 ```bash
 bash minimax_h3.sh
 ```
