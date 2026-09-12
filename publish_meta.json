@@ -1,6 +1,6 @@
 {
-  "published_by": "actions",
-  "published_at": "2026-09-12T17:59:13+00:00",
-  "garmin": false,
-  "garmin_updated_at": null
+  "published_by": "local",
+  "published_at": "2026-09-12T21:44:45+00:00",
+  "garmin": true,
+  "garmin_updated_at": "2026-09-13T06:42:40.194623"
 }
