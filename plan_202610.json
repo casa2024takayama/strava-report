@@ -1,262 +1,262 @@
 {
   "month": "2026-10",
   "goal_km": 200,
-  "overview": "9月の有酸素ボリューム不足（ANAEROBIC_SHORTAGE）を解消するため、E走中心（約80%）でベースを拡大。クオリティは週2回以内（T・M・I）に限定し、毎週ロング走を設定。睡眠7h確保とレディネス管理で回復を最優先しながら200kmを達成する。",
+  "overview": "9月の過剰強度を修正し80/20原則を徹底。週2回のクオリティ（T・I）と週1ロングEを軸に据え、イージーは心拍130〜140台前半を厳守。連日高強度を排除して有酸素ベースを着実に積み上げる月。",
   "weeks": [
     {
       "num": 1,
       "range": "10/1〜10/5",
-      "theme": "ベース再構築",
-      "target_km": 40,
+      "theme": "有酸素ベース再構築",
+      "target_km": 35,
       "days": [
         {
           "date": "10/1",
-          "dow": "木",
+          "dow": "水",
           "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 5:45/km、心拍130〜140bpm維持"
+          "dist": "10km",
+          "desc": "イージー 6:10〜6:30/km、HR130以下を厳守"
         },
         {
           "date": "10/2",
-          "dow": "金",
+          "dow": "木",
           "zone": "休養",
           "dist": "—",
-          "desc": "完全休養または軽いストレッチ"
+          "desc": "完全休養またはストレッチ"
         },
         {
           "date": "10/3",
-          "dow": "土",
-          "zone": "ロングE",
-          "dist": "16km",
-          "desc": "Eペース 5:45〜6:00/km、後半も同ペース厳守"
+          "dow": "金",
+          "zone": "T",
+          "dist": "10km",
+          "desc": "W-up 2km(6:20/km)→テンポ5km(4:45〜4:55/km)→C-down 3km"
         },
         {
           "date": "10/4",
-          "dow": "日",
+          "dow": "土",
           "zone": "E",
-          "dist": "8km",
-          "desc": "回復ジョグ 6:00〜6:15/km、心拍130以下"
+          "dist": "7km",
+          "desc": "軽いイージー 6:20〜6:30/km、脚の感覚確認"
         },
         {
           "date": "10/5",
-          "dow": "月",
-          "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 5:40〜5:50/km"
+          "dow": "日",
+          "zone": "ロングE",
+          "dist": "18km",
+          "desc": "終始E域 5:50〜6:20/km、HR140以下で距離積み"
         }
       ]
     },
     {
       "num": 2,
       "range": "10/6〜10/12",
-      "theme": "有酸素ボリューム強化",
-      "target_km": 42,
+      "theme": "基礎量の安定確保",
+      "target_km": 40,
       "days": [
         {
           "date": "10/6",
-          "dow": "火",
-          "zone": "E",
-          "dist": "10km",
-          "desc": "イージー 5:45/km、会話できるペース維持"
+          "dow": "月",
+          "zone": "休養",
+          "dist": "—",
+          "desc": "完全休養（ロング走翌日）"
         },
         {
           "date": "10/7",
+          "dow": "火",
+          "zone": "E",
+          "dist": "8km",
+          "desc": "イージー 6:10/km、HR130台を維持"
+        },
+        {
+          "date": "10/8",
           "dow": "水",
+          "zone": "T",
+          "dist": "10km",
+          "desc": "W-up 2km→テンポ6km(4:45〜4:50/km)→C-down 2km、一定ペースを保つ"
+        },
+        {
+          "date": "10/9",
+          "dow": "木",
+          "zone": "E",
+          "dist": "8km",
+          "desc": "イージー 6:10/km"
+        },
+        {
+          "date": "10/10",
+          "dow": "金",
           "zone": "休養",
           "dist": "—",
           "desc": "完全休養"
         },
         {
-          "date": "10/8",
-          "dow": "木",
-          "zone": "M",
-          "dist": "10km",
-          "desc": "W-up2km(E)+Mペース6km(4:55〜5:00/km)+C-down2km(E)"
-        },
-        {
-          "date": "10/9",
-          "dow": "金",
-          "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 5:50〜6:00/km"
-        },
-        {
-          "date": "10/10",
-          "dow": "土",
-          "zone": "ロングE",
-          "dist": "18km",
-          "desc": "5:50〜6:10/km 全区間Eペース厳守、後半失速OK"
-        },
-        {
           "date": "10/11",
-          "dow": "日",
-          "zone": "E",
-          "dist": "6km",
-          "desc": "回復ジョグ 6:15/km前後、心拍125以下"
+          "dow": "土",
+          "zone": "I",
+          "dist": "11km",
+          "desc": "W-up 3km→Iペース4:15〜4:20/km×4分×4本(レストjog 3分)→C-down 3km"
         },
         {
           "date": "10/12",
-          "dow": "月",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養、体のケアに充てる"
+          "dow": "日",
+          "zone": "E",
+          "dist": "13km",
+          "desc": "イージーロング 6:00〜6:20/km"
         }
       ]
     },
     {
       "num": 3,
       "range": "10/13〜10/19",
-      "theme": "クオリティ導入",
+      "theme": "質の向上・VO2max刺激",
       "target_km": 42,
       "days": [
         {
           "date": "10/13",
-          "dow": "火",
-          "zone": "E",
-          "dist": "10km",
-          "desc": "イージー 5:45/km"
-        },
-        {
-          "date": "10/14",
-          "dow": "水",
-          "zone": "T",
-          "dist": "10km",
-          "desc": "W-up2km(E)+テンポ走6km(4:35〜4:45/km、HRmax83〜88%)+C-down2km"
-        },
-        {
-          "date": "10/15",
-          "dow": "木",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養"
-        },
-        {
-          "date": "10/16",
-          "dow": "金",
-          "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 5:50〜6:00/km"
-        },
-        {
-          "date": "10/17",
-          "dow": "土",
-          "zone": "ロングE",
-          "dist": "18km",
-          "desc": "5:50〜6:10/km Eペース、後半14〜18km区間は5:45に引き上げ可"
-        },
-        {
-          "date": "10/18",
-          "dow": "日",
-          "zone": "E",
-          "dist": "6km",
-          "desc": "回復ジョグ 6:15/km"
-        },
-        {
-          "date": "10/19",
           "dow": "月",
           "zone": "休養",
           "dist": "—",
           "desc": "完全休養"
+        },
+        {
+          "date": "10/14",
+          "dow": "火",
+          "zone": "E",
+          "dist": "8km",
+          "desc": "イージー 6:10/km"
+        },
+        {
+          "date": "10/15",
+          "dow": "水",
+          "zone": "T",
+          "dist": "12km",
+          "desc": "W-up 2km→テンポ8km(4:45/km一定)→C-down 2km、先週より2km延長"
+        },
+        {
+          "date": "10/16",
+          "dow": "木",
+          "zone": "E",
+          "dist": "8km",
+          "desc": "イージー 6:10/km"
+        },
+        {
+          "date": "10/17",
+          "dow": "金",
+          "zone": "休養",
+          "dist": "—",
+          "desc": "完全休養"
+        },
+        {
+          "date": "10/18",
+          "dow": "土",
+          "zone": "I",
+          "dist": "11km",
+          "desc": "W-up 3km→Iペース4:10〜4:18/km×5分×4本(レストjog 3分)→C-down 2km"
+        },
+        {
+          "date": "10/19",
+          "dow": "日",
+          "zone": "ロングE",
+          "dist": "18km",
+          "desc": "E域 5:50〜6:10/km、後半ラスト4kmのみMゾーン可(5:15〜5:25/km)"
         }
       ]
     },
     {
       "num": 4,
       "range": "10/20〜10/26",
-      "theme": "強化継続",
-      "target_km": 40,
+      "theme": "ピーク積み上げ",
+      "target_km": 43,
       "days": [
         {
           "date": "10/20",
-          "dow": "火",
-          "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 5:45/km"
+          "dow": "月",
+          "zone": "休養",
+          "dist": "—",
+          "desc": "完全休養"
         },
         {
           "date": "10/21",
-          "dow": "水",
-          "zone": "I",
-          "dist": "10km",
-          "desc": "W-up3km(E)+1000m×4本(4:10〜4:20/km、レスト400mジョグ)+C-down3km"
+          "dow": "火",
+          "zone": "E",
+          "dist": "8km",
+          "desc": "イージー 6:10/km"
         },
         {
           "date": "10/22",
-          "dow": "木",
-          "zone": "E",
-          "dist": "6km",
-          "desc": "回復ジョグ 6:00〜6:15/km"
+          "dow": "水",
+          "zone": "T",
+          "dist": "12km",
+          "desc": "W-up 2km→テンポ8km(4:43〜4:48/km)→C-down 2km"
         },
         {
           "date": "10/23",
+          "dow": "木",
+          "zone": "E",
+          "dist": "9km",
+          "desc": "イージー 6:00〜6:15/km"
+        },
+        {
+          "date": "10/24",
           "dow": "金",
           "zone": "休養",
           "dist": "—",
           "desc": "完全休養"
         },
         {
-          "date": "10/24",
-          "dow": "土",
-          "zone": "M",
-          "dist": "14km",
-          "desc": "W-up2km(E)+Mペース10km(4:55〜5:00/km)+C-down2km"
-        },
-        {
           "date": "10/25",
-          "dow": "日",
-          "zone": "ロングE",
-          "dist": "16km",
-          "desc": "5:50〜6:10/km 全区間Eペース"
+          "dow": "土",
+          "zone": "I",
+          "dist": "12km",
+          "desc": "W-up 3km→Iペース4:12〜4:18/km×5分×5本(レストjog 3分)→C-down 2km"
         },
         {
           "date": "10/26",
-          "dow": "月",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養"
+          "dow": "日",
+          "zone": "ロングE",
+          "dist": "20km",
+          "desc": "E域 5:50〜6:10/km、月最長走、終始HR145以下を維持"
         }
       ]
     },
     {
       "num": 5,
       "range": "10/27〜10/31",
-      "theme": "仕上げ・調整",
-      "target_km": 36,
+      "theme": "まとめと回復移行",
+      "target_km": 40,
       "days": [
         {
           "date": "10/27",
-          "dow": "火",
-          "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 5:45〜5:50/km"
+          "dow": "月",
+          "zone": "休養",
+          "dist": "—",
+          "desc": "完全休養（ロング走翌日）"
         },
         {
           "date": "10/28",
-          "dow": "水",
-          "zone": "T",
-          "dist": "10km",
-          "desc": "W-up2km(E)+テンポ走6km(4:35〜4:45/km)+C-down2km"
+          "dow": "火",
+          "zone": "E",
+          "dist": "8km",
+          "desc": "イージー 6:10/km"
         },
         {
           "date": "10/29",
-          "dow": "木",
+          "dow": "水",
           "zone": "E",
-          "dist": "8km",
-          "desc": "イージー 5:50〜6:00/km"
+          "dist": "14km",
+          "desc": "イージー〜M入口 5:50〜6:10/km、後半少しテンポアップ可"
         },
         {
           "date": "10/30",
-          "dow": "金",
-          "zone": "休養",
-          "dist": "—",
-          "desc": "完全休養"
+          "dow": "木",
+          "zone": "T",
+          "dist": "10km",
+          "desc": "W-up 2km→テンポ6km(4:45/km)→C-down 2km"
         },
         {
           "date": "10/31",
-          "dow": "土",
-          "zone": "ロングE",
-          "dist": "10km",
-          "desc": "軽めのロングE 6:00/km、月間を気持ちよく締める"
+          "dow": "金",
+          "zone": "休養",
+          "dist": "—",
+          "desc": "完全休養、11月に向けて疲労排出"
         }
       ]
     }
