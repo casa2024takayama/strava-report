@@ -315,16 +315,23 @@ def start_update() -> dict:
     steps: list[tuple[str, list[str], dict[str, str] | None]] = []
     for ym in months:
         steps.append(("fetch", [py, "strava_fetch.py"], {"TARGET_YEAR_MONTH": ym}))
-    for ym in months:
-        coach_argv = [py, _coach_script(), "--month", ym]
-        if _coach_script() == "coach_ollama.py":
-            coach_argv.append("--no-stream")
-        steps.append(("coach", coach_argv, None))
+    if _coach_enabled():
+        for ym in months:
+            coach_argv = [py, _coach_script(), "--month", ym]
+            if _coach_script() == "coach_ollama.py":
+                coach_argv.append("--no-stream")
+            steps.append(("coach", coach_argv, None))
+    steps.append(("shoes", [py, "shoe_compare.py"], None))
     for ym in months:
         steps.append(
             ("html", [py, "report_html.py"], {"TARGET_YEAR_MONTH": ym, "REPORT_EDITION": "local"}),
         )
     return _start_job("fetch", steps)
+
+
+def _coach_enabled() -> bool:
+    """AI 評価は既定で停止中（API クレジット切れのため）。.env に COACH_ENABLED=1 で再開。"""
+    return os.environ.get("COACH_ENABLED", "0").strip() == "1"
 
 
 def _coach_script() -> str:
@@ -337,6 +344,12 @@ def _coach_script() -> str:
 
 
 def start_coach() -> dict:
+    if not _coach_enabled():
+        return {
+            "started": False,
+            "reason": "coach_disabled",
+            "message": "AI 評価は停止中です（.env に COACH_ENABLED=1 で再開）",
+        }
     py = _python()
     month = _current_month_arg()
     coach_script = _coach_script()

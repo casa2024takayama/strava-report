@@ -31,7 +31,10 @@ done
 
 echo ""
 echo "▶ Step 2: AI コーチング（Claude）..."
-if [ -n "${ANTHROPIC_API_KEY:-}" ] || grep -qE '^ANTHROPIC_API_KEY=.' .env 2>/dev/null; then
+# AI 評価は既定で停止中（API クレジット切れのため）。.env に COACH_ENABLED=1 で再開。
+if [ "${COACH_ENABLED:-0}" != "1" ] && ! grep -qE '^COACH_ENABLED=1' .env 2>/dev/null; then
+  echo "⏸  AI 評価は停止中 — スキップ"
+elif [ -n "${ANTHROPIC_API_KEY:-}" ] || grep -qE '^ANTHROPIC_API_KEY=.' .env 2>/dev/null; then
   for YM in "$PREV" "$(date +%Y-%m)"; do
     echo "  → $YM"
     "$PYTHON" coach_claude.py --month "$YM" || echo "⚠️  $YM のコーチングに失敗（続行）"
@@ -39,6 +42,10 @@ if [ -n "${ANTHROPIC_API_KEY:-}" ] || grep -qE '^ANTHROPIC_API_KEY=.' .env 2>/de
 else
   echo "⚠️  ANTHROPIC_API_KEY 未設定 — コーチングをスキップ"
 fi
+
+echo ""
+echo "▶ Step 2.5: シューズ比較ページ生成..."
+"$PYTHON" shoe_compare.py || echo "⚠️  シューズ比較の生成に失敗（続行）"
 
 echo ""
 echo "▶ Step 3: HTML レポート生成（ローカル版）..."

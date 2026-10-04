@@ -102,8 +102,9 @@ jobs:
         if: steps.guard.outputs.should_publish == 'true'
         run: python3 strava_fetch.py
 
+      # AI 評価は既定で停止中（API クレジット切れのため）。リポジトリ変数 COACH_ENABLED=1 で再開。
       - name: AI coaching (Claude)
-        if: steps.guard.outputs.should_publish == 'true'
+        if: steps.guard.outputs.should_publish == 'true' && vars.COACH_ENABLED == '1'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |

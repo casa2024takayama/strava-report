@@ -36,11 +36,17 @@ if [ -n "$PREV_YM" ]; then
 fi
 
 echo "▶ Step 2: AI コーチング（Claude / Sonnet・Garmin 反映）"
-if [ -n "${ANTHROPIC_API_KEY:-}" ] || grep -qE '^ANTHROPIC_API_KEY=.' .env 2>/dev/null; then
+# AI 評価は既定で停止中（API クレジット切れのため）。.env に COACH_ENABLED=1 で再開。
+if [ "${COACH_ENABLED:-0}" != "1" ] && ! grep -qE '^COACH_ENABLED=1' .env 2>/dev/null; then
+  echo "⏸  AI 評価は停止中 — スキップ"
+elif [ -n "${ANTHROPIC_API_KEY:-}" ] || grep -qE '^ANTHROPIC_API_KEY=.' .env 2>/dev/null; then
   "$PYTHON" coach_claude.py || echo "⚠️ コーチング失敗（レポートは続行）"
 else
   echo "⚠️ ANTHROPIC_API_KEY 未設定 — コーチングをスキップ"
 fi
+
+echo "▶ Step 2.5: シューズ比較ページ生成"
+"$PYTHON" shoe_compare.py || echo "⚠️ シューズ比較の生成に失敗（レポートは続行）"
 
 echo "▶ Step 3: オンライン版 HTML 生成"
 # 「ローカル版」リンクをスマホから開けるよう、Tailscale IP を自動検出して埋め込む
@@ -61,7 +67,7 @@ REPORT_EDITION=online "$PYTHON" report_html.py
 push_with_retry() {
   local attempt=1 max=5
   while true; do
-    git pull --rebase -X theirs origin main && git push && return 0
+    git pull --rebase --autostash -X theirs origin main && git push && return 0
     git rebase --abort >/dev/null 2>&1 || true
     if [ "$attempt" -ge "$max" ]; then
       echo "❌ push failed after $attempt attempts" >&2
@@ -93,6 +99,7 @@ if grep -l 'const token = "[^"]' index.html 20*.html 2>/dev/null; then
 fi
 
 git add index.html 20*.html pbs.json races.json publish_meta.json
+git add shoes.html 2>/dev/null || true
 git add plan_*.json 2>/dev/null || true   # まだ存在しない場合は無視（set -e 対策）
 if git diff --staged --quiet; then
   echo "（変更なし — push スキップ）"

@@ -286,10 +286,13 @@ def build_month_nav():
     back_btn = ('' if is_latest else
                 '<a href="index.html" class="back-latest">↑ 最新データへ</a>')
 
+    shoes_html = ('<a href="shoes.html" class="mnav-arrow">👟 シューズ比較</a>'
+                  if os.path.exists("shoes.html") else '')
     return f"""<nav class="month-nav">
   {prev_html}
   <span class="mnav-label">{cur_label}</span>
   {next_html}
+  {shoes_html}
 </nav>
 {back_btn}"""
 

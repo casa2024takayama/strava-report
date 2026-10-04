@@ -212,9 +212,12 @@ def fetch_month_runs(access_token, year=None, month=None):
         page += 1
     return runs
 
-def fetch_detail(activity_id, access_token):
-    """詳細をキャッシュ優先で取得"""
+def fetch_detail(activity_id, access_token, summary_gear_id=None):
+    """詳細をキャッシュ優先で取得。Strava 側でシューズ（ギア）を変更していたら取り直す"""
     cached = _load_cache(activity_id)
+    if cached and summary_gear_id is not None and cached.get("gear_id") != summary_gear_id:
+        print(f"  (ギア変更)   {activity_id} → 再取得")
+        cached = None
     if cached:
         print(f"  (キャッシュ) {activity_id}")
         return cached
@@ -444,7 +447,7 @@ def main():
     details = []
     for i, run in enumerate(runs, 1):
         print(f"  ({i}/{len(runs)}) {run.get('name')}")
-        details.append(fetch_detail(run["id"], access_token))
+        details.append(fetch_detail(run["id"], access_token, run.get("gear_id")))
 
     print("\n[3/4] GPS ストリームを取得（3km 以上・キャッシュ優先）...")
     streams_map = {}
