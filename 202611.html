@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🏃 Strava 2026年11月 ランニングレポート</title>
+<meta name="report-edition" content="online">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html,body{margin:0;padding:0;background:#F4F3F0}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",sans-serif;color:#1C1917;-webkit-font-smoothing:antialiased;line-height:1.6}
+  a{color:#C2410C;text-decoration:none}
+  a:hover{color:#FC4C02;text-decoration:underline}
+  .edition-banner{padding:8px 16px;font-size:12.5px;line-height:1.5}
+  .edition-banner a{color:inherit;font-weight:700}
+  .edition-banner.edition-online{background:#dbeafe;color:#1e3a8a}
+  .edition-banner.edition-local{background:#ffedd5;color:#9a3412}
+  .edition-banner.edition-other{background:#fef3c7;color:#92400e}
+  .rr-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid #E7E5E1}
+  .rr-header-inner{max-width:760px;margin:0 auto;padding:0 16px}
+  .rr-header-row1{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 8px;flex-wrap:wrap;transition:padding .15s ease}
+  .rr-title{display:flex;align-items:center;gap:10px}
+  .rr-bar{width:10px;height:22px;background:#FC4C02;border-radius:3px;transition:height .15s ease}
+  .rr-month{font-size:19px;font-weight:800;letter-spacing:-.01em;transition:font-size .15s ease}
+  .rr-sub{font-size:12px;color:#78716C;font-weight:600}
+  /* スクロール時の折りたたみ（モバイルでヘッダー面積を圧縮） */
+  .rr-header.rr-collapsed .rr-header-row1{padding:6px 0}
+  .rr-header.rr-collapsed .rr-month{font-size:15px}
+  .rr-header.rr-collapsed .rr-bar{height:16px}
+  .rr-header.rr-collapsed .rr-sub,
+  .rr-header.rr-collapsed .header-actions,
+  .rr-header.rr-collapsed #github-sync-panel,
+  .rr-header.rr-collapsed .month-nav,
+  .rr-header.rr-collapsed .rr-meta{display:none}
+  .rr-tabs{display:flex;gap:2px;overflow-x:auto}
+  .rr-tab{all:unset;box-sizing:border-box;cursor:pointer;padding:9px 16px 11px;font-size:13.5px;font-weight:700;color:#78716C;white-space:nowrap;border-bottom:3px solid transparent}
+  .rr-main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
+  .rr-main section{display:flex;flex-direction:column;gap:16px}
+  .header-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .btn-update{background:#FC4C02;color:#fff;border:none;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .15s,opacity .15s}
+  .btn-update:hover:not(:disabled){transform:translateY(-1px)}
+  .btn-update:disabled{opacity:.65;cursor:wait}
+  .btn-coach{background:#eef2ff;color:#4338ca;border:none;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .15s,opacity .15s}
+  .btn-coach:hover:not(:disabled){transform:translateY(-1px)}
+  .btn-coach:disabled{opacity:.65;cursor:wait}
+  .btn-garmin{background:#ecfdf5;color:#047857;border:none;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:transform .1s}
+  .btn-garmin:hover:not(:disabled){transform:translateY(-1px)}
+  .btn-garmin:disabled{opacity:.65;cursor:wait}
+  .btn-sync-link{display:inline-flex;align-items:center;text-decoration:none;background:#FC4C02;color:#fff;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;white-space:nowrap}
+  #github-sync-panel{display:none}
+  .month-nav{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+  .mnav-arrow{border:1px solid #E7E5E1;background:#fff;color:#78716C;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;text-decoration:none}
+  .mnav-disabled{color:#D6D3CE}
+  .mnav-label{font-size:12px;font-weight:700;color:#1C1917;padding:0 4px;white-space:nowrap}
+  .back-latest{font-size:11px;color:#C2410C;font-weight:700;text-decoration:none;margin-left:6px}
+  .update-hint{font-size:11px;color:#78716C;max-width:200px;line-height:1.4}
+  .rr-meta{font-size:10.5px;color:#78716C;line-height:1.45;padding-bottom:6px}
+  .rr-meta p{margin:0}
+  .last-coach.stale{color:#B45309}
+  .last-coach-warn{color:#B45309;font-weight:700}
+  .update-status{margin:0 0 8px;background:#FEF6E7;border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.5;display:none;color:#7c2d12}
+  .update-status.visible{display:block}
+  .update-status.error{background:#FEF2F2;color:#991B1B}
+  .update-status.success{background:#ECFDF3;color:#15803D}
+  .update-log{margin-top:6px;max-height:120px;overflow:auto;font-family:ui-monospace,monospace;font-size:11px;white-space:pre-wrap}
+  .rr-map{height:200px;border-radius:10px;margin:10px 0;background:#EDECE8}
+  .rr-bd{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:#78716C;margin-bottom:8px}
+  .rr-bd span{background:#FAFAF8;border-radius:6px;padding:2px 8px}
+  .rr-cp{font-size:12.5px;color:#44403C;line-height:1.7;margin-bottom:6px}
+  .rr-tips{margin:6px 0 6px 18px;font-size:12px;color:#57534E;line-height:1.7}
+  .rr-laptable{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:8px}
+  .rr-laptable th,.rr-laptable td{border:1px solid #EDECE8;padding:4px 8px;text-align:right}
+  .rr-laptable th{background:#FAFAF8;color:#78716C;font-weight:700}
+  .rr-coachbody :first-child{margin-top:0}
+  .rr-coachbody table{border-collapse:collapse;font-size:12px}
+  .rr-coachbody th,.rr-coachbody td{border:1px solid #EDECE8;padding:4px 8px}
+</style>
+</head>
+<body>
+
+<div id="edition-banner" class="edition-banner" role="status" aria-live="polite"></div>
+<script>(function () {
+  const host = location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1'
+    || /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
+    || host.endsWith('.ts.net');
+  const isOnline = host.endsWith('.github.io');
+  const edition = isLocal ? 'local' : (isOnline ? 'online' : 'other');
+  const banner = document.getElementById('edition-banner');
+  const onlineUrl = "https://casa2024takayama.github.io/strava-report/";
+  const localUrl = "http://127.0.0.1:8766/index.html";
+  const baseTitle = document.title.replace(/ \[(ローカル|オンライン)\]/g, '');
+  if (!banner) return;
+  if (edition === 'local') {
+    banner.className = 'edition-banner edition-local';
+    banner.innerHTML = '💻 <strong>ローカル版</strong>（この Mac · serve_report）'
+      + ' — 右上のボタンで更新 · 自動更新なし'
+      + ' · <a href="' + onlineUrl + '" target="_blank" rel="noopener">オンライン版を開く</a>';
+    document.title = baseTitle + ' [ローカル]';
+  } else if (edition === 'online') {
+    banner.className = 'edition-banner edition-online';
+    banner.innerHTML = '🌐 <strong>オンライン版</strong>（GitHub Pages）'
+      + ' — 毎日 23:00 JST 自動更新 · Strava同期ボタン'
+      + ' · <a href="' + localUrl + '">ローカル版</a>';
+    document.title = baseTitle + ' [オンライン]';
+  } else {
+    banner.className = 'edition-banner edition-other';
+    banner.innerHTML = '⚠️ file:// では更新できません — ターミナルで <code>python3 serve_report.py --open</code> を実行し '
+      + '<a href="' + localUrl + '">' + localUrl + '</a> をブックマークしてください';
+    document.title = baseTitle + ' [ローカル推奨]';
+  }
+})();</script>
+
+<div class="rr-header">
+  <div class="rr-header-inner">
+    <div class="rr-header-row1">
+      <div class="rr-title">
+        <div class="rr-bar"></div>
+        <div class="rr-month">2026年11月</div>
+        <div class="rr-sub">ランニングレポート</div>
+      </div>
+      <div class="header-actions" id="update-panel">
+        <button type="button" class="btn-update" id="btn-update">🔄 更新</button>
+        <button type="button" class="btn-coach" id="btn-coach">🤖 AI</button>
+        
+        <span class="update-hint" id="update-hint"></span>
+      </div>
+      <div class="header-actions" id="github-sync-panel">
+        <a class="btn-sync-link" id="btn-github-sync" href="https://github.com/casa2024takayama/strava-report/actions/workflows/update_report.yml" target="_blank" rel="noopener">🔄 Strava同期</a>
+      </div>
+      <nav class="month-nav">
+  <a href="202610.html" class="mnav-arrow">← 10月</a>
+  <span class="mnav-label">2026年11月　✦ 最新</span>
+  <span class="mnav-arrow mnav-disabled">→</span>
+  <a href="shoes.html" class="mnav-arrow">👟 シューズ比較</a>
+</nav>
+
+    </div>
+    <div class="rr-meta">
+      <p class="last-fetch ok" id="last-fetch-msg">✓ 最終データ取得: 2026-11-01 06:42:40</p>
+      <p class="last-garmin ok" id="last-garmin-msg">✓ Garmin 取得: 2026-11-01 06:42:36</p>
+      <p class="last-coach ok" id="last-coach-msg">✓ 最終 AI 評価: 2026-09-22 06:45:15（claude-sonnet-4-6（Claude API））</p>
+    </div>
+    <div class="update-status" id="update-status">
+      <strong id="update-status-text"></strong>
+      <div class="update-log" id="update-log"></div>
+    </div>
+    <div class="rr-tabs">
+      <button class="rr-tab" data-tab="today">今日</button>
+      <button class="rr-tab" data-tab="plan">プラン</button>
+      <button class="rr-tab" data-tab="coach">AIコーチ</button>
+      <button class="rr-tab" data-tab="records">記録</button>
+    </div>
+  </div>
+</div>
+
+<div class="rr-main">
+  <section id="tab-today" style="display:none"></section>
+  <section id="tab-plan" style="display:none"></section>
+  <section id="tab-coach" style="display:none"></section>
+  <section id="tab-records" style="display:none"></section>
+</div>
+
+<script>(function () {
+  const panel = document.getElementById('update-panel');
+  const btnUpdate = document.getElementById('btn-update');
+  const btnCoach = document.getElementById('btn-coach');
+  const btnGarmin = document.getElementById('btn-garmin');
+  const hint = document.getElementById('update-hint');
+  const statusBox = document.getElementById('update-status');
+  const statusText = document.getElementById('update-status-text');
+  const logEl = document.getElementById('update-log');
+  const host = location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1'
+    || /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./.test(host)  // Tailscale CGNAT 100.64.0.0/10
+    || host.endsWith('.ts.net');
+  const isGithubPages = host.endsWith('.github.io');
+  const githubPanel = document.getElementById('github-sync-panel');
+  const token = "";
+  const authHeaders = token ? { 'X-Report-Token': token } : {};
+  let pollTimer = null;
+  let activeKind = null;
+
+  if (isGithubPages && githubPanel && panel) {
+    panel.style.display = 'none';
+    githubPanel.style.display = 'flex';
+  }
+
+  if (!panel || !btnUpdate || !btnCoach) return;
+  if (!isLocal) { return; }
+
+  if (location.protocol === 'file:') {
+    hint.textContent = 'file:// では不可 → python3 serve_report.py --open';
+  }
+
+  function setButtonsDisabled(disabled) {
+    btnUpdate.disabled = disabled;
+    btnCoach.disabled = disabled;
+    if (btnGarmin) btnGarmin.disabled = disabled;
+  }
+  function setStatus(msg, isError, isSuccess) {
+    statusBox.classList.add('visible');
+    statusBox.classList.toggle('error', !!isError);
+    statusBox.classList.toggle('success', !!isSuccess);
+    statusText.textContent = msg;
+  }
+  function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+  function stepLabel(data) {
+    const labels = { starting:'準備中…', fetch:'Strava から取得中…', coach:'Claude が評価中…',
+      garmin:'Garmin から取得中…（数分かかります）', html:'HTML 再生成中…', done:'完了', error:'エラー' };
+    return labels[data.step] || data.step;
+  }
+  async function pollStatus() {
+    try {
+      const res = await fetch('/api/status', { headers: authHeaders });
+      const data = await res.json();
+      const kind = data.kind || activeKind;
+      const isSuccess = data.done && !data.running && !data.error;
+      if (!isSuccess) { setStatus(stepLabel(data), !!data.error, false); }
+      logEl.textContent = (data.log || []).slice(-12).join('\n');
+      if (data.error) { setButtonsDisabled(false); stopPoll(); return; }
+      if (data.done && !data.running) {
+        stopPoll();
+        if (kind === 'coach') {
+          const ts = data.last_coach || '';
+          setStatus(ts ? ('✓ AI コーチング完了 — ' + ts) : '✓ AI コーチング完了', false, true);
+          const lastCoachEl = document.getElementById('last-coach-msg');
+          if (lastCoachEl && ts) { lastCoachEl.className = 'last-coach ok'; lastCoachEl.textContent = '✓ 最終 AI 評価: ' + ts; }
+        } else if (kind === 'garmin') {
+          setStatus('✓ Garmin 取得・レポート再生成 完了', false, true);
+          const lg = document.getElementById('last-garmin-msg');
+          if (lg) lg.className = 'last-garmin ok';
+        } else {
+          const ts = data.last_fetch || '';
+          setStatus(ts ? ('✓ 更新完了 — データ ' + ts) : '✓ 更新完了', false, true);
+          const lastFetchEl = document.getElementById('last-fetch-msg');
+          if (lastFetchEl && ts) { lastFetchEl.className = 'last-fetch ok'; lastFetchEl.textContent = '✓ 最終データ取得: ' + ts; }
+          const coachTs = data.last_coach || '';
+          const lastCoachEl = document.getElementById('last-coach-msg');
+          if (lastCoachEl && coachTs) { lastCoachEl.className = 'last-coach ok'; lastCoachEl.textContent = '✓ 最終 AI 評価: ' + coachTs; }
+          const warnEl = document.getElementById('last-coach-warn');
+          if (warnEl) warnEl.remove();
+        }
+        setTimeout(function(){ location.reload(); }, 2500);
+      }
+    } catch (e) {
+      setStatus('サーバーに接続できません', true, false);
+      setButtonsDisabled(false);
+      stopPoll();
+    }
+  }
+  function warnFileProtocol() {
+    alert('file:// では実行できません。\n\nターミナルで:\n  cd ~/Projects/strava-report\n  python3 serve_report.py --open\n\nを実行し、http://127.0.0.1:8766/index.html を開いてください。');
+  }
+  async function startJob(endpoint, kind, startMsg) {
+    if (location.protocol === 'file:') { warnFileProtocol(); return; }
+    activeKind = kind;
+    setButtonsDisabled(true);
+    setStatus(startMsg, false, false);
+    logEl.textContent = '';
+    try {
+      const res = await fetch(endpoint, { method: 'POST', headers: authHeaders });
+      const data = await res.json();
+      if (!data.started) {
+        setStatus(data.message || 'すでに処理が実行中です', false, false);
+        if (data.message) logEl.textContent = data.message;
+        setButtonsDisabled(false);
+        return;
+      }
+      stopPoll();
+      pollTimer = setInterval(pollStatus, 1500);
+      pollStatus();
+    } catch (e) {
+      setStatus('API に接続できません。serve_report.py が起動しているか確認してください。', true, false);
+      setButtonsDisabled(false);
+    }
+  }
+  btnUpdate.addEventListener('click', function(){ startJob('/api/update', 'fetch', 'データ更新を開始しています…'); });
+  btnCoach.addEventListener('click', function(){ startJob('/api/coach', 'coach', 'AI 評価を開始しています…（Claude API）'); });
+  if (btnGarmin) { btnGarmin.addEventListener('click', function(){ startJob('/api/garmin', 'garmin', 'Garmin から取得を開始しています…（数分かかります）'); }); }
+})();</script>
+<script>
+
+const DATA = {"meta": {"monthLabel": "2026年11月", "yyyymm": "202611", "edition": "online", "isCurrentMonth": true, "monthGoal": 200}, "today": {"conditionAlert": null, "menu": {"zone": "ロングE", "dist": "15km", "desc": "低強度ジョグ 15〜20km（5:00〜5:30/km）— 脚を使い切らない", "dateLabel": "11/1（日）"}, "raceCountdown": {"name": "富山マラソン2026", "sub": "11/1（日）・42.195km", "days": 0}, "monthSummary": {"dist": 0, "goal": 200, "pct": 0, "runCount": 0, "totalTime": "0:00", "avgHr": null, "elev": 0}, "weekBars": [{"label": "第1週", "actual": 0, "plan": 48.0}, {"label": "第2週", "actual": 0, "plan": null}, {"label": "第3週", "actual": 0, "plan": null}, {"label": "第4週", "actual": 0, "plan": null}, {"label": "第5週", "actual": 0, "plan": null}], "showGarmin": false, "garmin": null, "garminLabels": null, "vo2max": null, "activities": []}, "plan": {"currentWeek": 1, "title": "今週：第1週（10/26〜11/1）", "subtitle": "固定プラン（前月AIレビュー未生成）", "targetKm": 48.0, "days": [{"id": "d1026", "date": "10/26", "dow": "月", "zone": "休養", "dist": "—", "distKm": 0.0, "desc": "完全休養"}, {"id": "d1027", "date": "10/27", "dow": "火", "zone": "T", "dist": "7km", "distKm": 7.0, "desc": "持久走 6km（4:20〜4:40/km）＋ 200m×5本（44〜47秒/本・間は200mジョグ）"}, {"id": "d1028", "date": "10/28", "dow": "水", "zone": "E", "dist": "8km", "distKm": 8.0, "desc": "低強度ジョグ（5:20〜5:40/km）— 会話できるペース"}, {"id": "d1029", "date": "10/29", "dow": "木", "zone": "T", "dist": "10km", "distKm": 10.0, "desc": "前半 6km（5:20/km）→ ラスト 4km（4:35〜4:40/km）に上げる"}, {"id": "d1030", "date": "10/30", "dow": "金", "zone": "休養", "dist": "—", "distKm": 0.0, "desc": "完全休養 or 軽ジョグ（5:40/km 以上・5km 以内）"}, {"id": "d1031", "date": "10/31", "dow": "土", "zone": "I", "dist": "8km", "distKm": 8.0, "desc": "W-up 2km ＋ 1000m×5本（3:48〜3:54/km）休息2分 ＋ C-down 2km"}, {"id": "d1101", "date": "11/1", "dow": "日", "zone": "ロングE", "dist": "15km", "distKm": 15.0, "desc": "低強度ジョグ 15〜20km（5:00〜5:30/km）— 脚を使い切らない"}], "months": [{"num": 1, "numLabel": "第1週", "range": "10/26〜11/1", "theme": "固定プラン（前月AIレビュー未生成）", "target": "48km", "days": [{"id": "d1026", "date": "10/26", "dow": "月", "zone": "休養", "dist": "—", "distKm": 0.0, "desc": "完全休養"}, {"id": "d1027", "date": "10/27", "dow": "火", "zone": "T", "dist": "7km", "distKm": 7.0, "desc": "持久走 6km（4:20〜4:40/km）＋ 200m×5本（44〜47秒/本・間は200mジョグ）"}, {"id": "d1028", "date": "10/28", "dow": "水", "zone": "E", "dist": "8km", "distKm": 8.0, "desc": "低強度ジョグ（5:20〜5:40/km）— 会話できるペース"}, {"id": "d1029", "date": "10/29", "dow": "木", "zone": "T", "dist": "10km", "distKm": 10.0, "desc": "前半 6km（5:20/km）→ ラスト 4km（4:35〜4:40/km）に上げる"}, {"id": "d1030", "date": "10/30", "dow": "金", "zone": "休養", "dist": "—", "distKm": 0.0, "desc": "完全休養 or 軽ジョグ（5:40/km 以上・5km 以内）"}, {"id": "d1031", "date": "10/31", "dow": "土", "zone": "I", "dist": "8km", "distKm": 8.0, "desc": "W-up 2km ＋ 1000m×5本（3:48〜3:54/km）休息2分 ＋ C-down 2km"}, {"id": "d1101", "date": "11/1", "dow": "日", "zone": "ロングE", "dist": "15km", "distKm": 15.0, "desc": "低強度ジョグ 15〜20km（5:00〜5:30/km）— 脚を使い切らない"}], "current": true}], "weekTargets": {"1": 48.0}, "note": "月間プランは前月AIレビュー生成時に更新されます"}, "coach": {"verdict": {"kicker": "AI 月次コーチング ・ 2026年11月レビュー", "headline": "AIレビュー未生成 — ヘッダーの「AI」ボタンで生成できます", "points": []}, "sections": [], "keypoints": [], "paceZones": [{"zone": "E イージー", "pace": "4:56〜5:17", "desc": "122〜148bpm ・ 有酸素基礎・回復", "color": "#22c55e"}, {"zone": "M マラソン", "pace": "4:27", "desc": "156〜172bpm ・ レースペース", "color": "#3b82f6"}, {"zone": "T テンポ", "pace": "4:14〜4:20", "desc": "168〜178bpm ・ 乳酸閾値向上", "color": "#f59e0b"}, {"zone": "I インターバル", "pace": "3:47", "desc": "188〜198bpm ・ VO₂max 向上", "color": "#ef4444"}, {"zone": "R レペ", "pace": "3:33", "desc": "最大強度 ・ スピード・走力", "color": "#8b5cf6"}], "vdot": 56}, "records": {"pbs": [{"dist": "1 MILE", "time": "5:47", "date": "2026-04-04", "pct": 52, "ok": true, "badge": "✓ Sub 3:10", "target": "5:57"}, {"dist": "3 KM", "time": "11:47", "date": "2026-04-04", "pct": 0, "ok": false, "badge": "あと -0:16", "target": "11:31"}, {"dist": "5 KM", "time": "19:04", "date": "2026-06-06", "pct": 70, "ok": true, "badge": "✓ Sub 3:10", "target": "19:48"}, {"dist": "10 KM", "time": "42:16", "date": "2025-01-01", "pct": 0, "ok": false, "badge": "あと -0:58", "target": "41:18"}, {"dist": "HALF", "time": "1:30:16", "date": "2025-01-01", "pct": 17, "ok": true, "badge": "✓ Sub 3:10", "target": "1:31:07"}, {"dist": "FULL", "time": "3:15:29", "date": "2026-03-29", "pct": 0, "ok": false, "badge": "あと -5:29", "target": "3:10:00"}], "focus": "Full（Sub 3:10 まであと 5:29）", "vdot": {"current": 56, "markerPct": 53.3, "pbVdot": 48, "pbStr": "3:15:29"}, "targets": [{"kicker": "NEXT GOAL", "value": "Sub 3:10", "color": "#B45309", "sub": "VDOT 59 相当 ・ あと +3"}, {"kicker": "ULTIMATE", "value": "Sub 3:00", "color": "#B91C1C", "sub": "VDOT 63 相当 ・ あと +7"}]}};
+(function(){
+  const M = DATA.meta, T = DATA.today, P = DATA.plan, C = DATA.coach, R = DATA.records;
+  const DONE_KEY = 'rr2-done-' + M.yyyymm;
+  const TABS = ['today','plan','coach','records'];
+  const state = { tab:'today', openWeek: P.currentWeek||0, openCoach:{}, done:{} };
+  try { state.done = JSON.parse(localStorage.getItem(DONE_KEY) || '{}') || {}; } catch(e){}
+  const mapInited = {};
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function zoneStyle(zone){
+    const map = {'E':'#22c55e','E+坂':'#16a34a','ロングE':'#15803d','T':'#f59e0b','M':'#3b82f6','I':'#ef4444','R':'#8b5cf6','休養':'#A8A29E','レース':'#FC4C02','移動':'#A8A29E'};
+    const bg = map[zone] || '#A8A29E';
+    return 'background:'+bg+';color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:3px 0;width:58px;text-align:center;flex-shrink:0';
+  }
+  function chipStyle(label){
+    const m = {'イージー走':['#ECFDF3','#15803D','#BBF7D0'],'テンポ走':['#FEF6E7','#B45309','#FDE8C0'],'インターバル':['#FEF2F2','#B91C1C','#FECACA'],'ロング走':['#EEF2FF','#4338CA','#C7D2FE']};
+    const c = m[label] || ['#F5F5F4','#57534E','#E7E5E1'];
+    return 'background:'+c[0]+';color:'+c[1]+';border:1px solid '+c[2]+';font-size:11px;font-weight:800;border-radius:999px;padding:3px 10px;flex-shrink:0';
+  }
+  function tile(label,val,unit){
+    const u = unit ? "<span style='font-size:12px;color:#A8A29E'> "+esc(unit)+"</span>" : '';
+    return "<div style='background:#FAFAF8;border-radius:10px;padding:10px 12px'><div style='font-size:11px;color:#78716C;font-weight:700;margin-bottom:2px'>"+esc(label)+"</div><div style='font-size:18px;font-weight:800'>"+esc(val)+u+"</div></div>";
+  }
+
+  // ---------- 今日 ----------
+  function renderToday(){
+    const el = document.getElementById('tab-today');
+    let h = '';
+    if (T.conditionAlert){
+      h += "<div style='background:#FEF2F2;border:1px solid #FECACA;border-radius:14px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start'><div style='font-size:22px;line-height:1.2'>🛑</div><div style='flex:1'><div style='font-size:14px;font-weight:800;color:#991B1B;margin-bottom:2px'>"+esc(T.conditionAlert.title)+"</div><div style='font-size:12.5px;color:#7F1D1D;line-height:1.7'>"+T.conditionAlert.body+"</div></div></div>";
+    }
+    if (T.menu){
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>今日のメニュー — "+esc(T.menu.dateLabel)+"</div><a href='#plan' data-goto='plan' style='font-size:12px;font-weight:700;color:#C2410C'>今週のプラン →</a></div><div style='display:flex;align-items:center;gap:14px;flex-wrap:wrap'><span style='"+zoneStyle(T.menu.zone)+";width:auto;padding:6px 12px;font-size:13px'>"+esc(T.menu.zone)+"</span><div style='font-size:26px;font-weight:900;letter-spacing:-.02em'>"+esc(T.menu.dist)+"</div><div style='font-size:13px;color:#57534E'>"+esc(T.menu.desc)+"</div></div></div>";
+    }
+    if (T.raceCountdown){
+      const r = T.raceCountdown;
+      h += "<div style='background:#1C1917;color:#fff;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:16px'><div style='font-size:24px'>🏔️</div><div style='flex:1'><div style='font-size:14px;font-weight:800'>"+esc(r.name)+"</div><div style='font-size:12px;color:#A8A29E'>"+esc(r.sub)+"</div></div><div style='text-align:right'><div style='font-size:26px;font-weight:900;color:#FC4C02;line-height:1'>"+r.days+"</div><div style='font-size:11px;color:#A8A29E;font-weight:700'>日後</div></div></div>";
+    }
+    const ms = T.monthSummary;
+    const monLabel = M.monthLabel.replace(/^\d+年/,'');
+    h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>"+esc(monLabel)+"の走行距離</div><div style='font-size:12px;color:#78716C'>月間目標 "+ms.goal+"km</div></div><div style='display:flex;align-items:baseline;gap:8px;margin-bottom:10px'><div style='font-size:34px;font-weight:900;letter-spacing:-.02em'>"+ms.dist+"</div><div style='font-size:14px;font-weight:700;color:#78716C'>km</div><div style='font-size:12px;color:#A8A29E;margin-left:auto'>"+ms.pct+"%</div></div><div style='height:8px;background:#EDECE8;border-radius:4px;overflow:hidden;margin-bottom:16px'><div style='height:8px;width:"+ms.pct+"%;background:#FC4C02;border-radius:4px'></div></div><div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px'>"+tile('ラン回数',ms.runCount,'回')+tile('総時間',ms.totalTime,'')+tile('平均心拍',ms.avgHr==null?'—':ms.avgHr,'bpm')+tile('獲得標高',ms.elev,'m')+"</div></div>";
+
+    if (T.weekBars && T.weekBars.length){
+      let maxKm = 50;
+      T.weekBars.forEach(function(w){ maxKm = Math.max(maxKm, w.actual||0, w.plan||0); });
+      let bars = '';
+      T.weekBars.forEach(function(w){
+        const planW = w.plan ? (w.plan/maxKm*100) : 0;
+        const actW = (w.actual/maxKm*100);
+        const right = (w.plan!=null) ? ("<strong>"+w.actual+"</strong><span style='color:#A8A29E'> / "+w.plan+"km</span>") : ("<strong>"+w.actual+"</strong><span style='color:#A8A29E'> km</span>");
+        bars += "<div style='display:flex;align-items:center;gap:10px'><div style='width:44px;font-size:11px;font-weight:700;color:#78716C;flex-shrink:0'>"+esc(w.label)+"</div><div style='flex:1;position:relative;height:18px;background:#EDECE8;border-radius:5px;overflow:hidden'><div style='position:absolute;left:0;top:0;height:18px;width:"+planW+"%;background:#E0DED9;border-radius:5px'></div><div style='position:absolute;left:0;top:0;height:18px;width:"+actW+"%;background:#FC4C02;border-radius:5px'></div></div><div style='width:86px;font-size:11.5px;text-align:right;flex-shrink:0'>"+right+"</div></div>";
+      });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:14px'>週別距離（実績 / 目標）</div><div style='display:flex;flex-direction:column;gap:10px'>"+bars+"</div><div style='display:flex;gap:14px;margin-top:12px;font-size:11px;color:#78716C'><span style='display:inline-flex;align-items:center;gap:5px'><span style='width:10px;height:10px;background:#FC4C02;border-radius:3px;display:inline-block'></span>実績</span><span style='display:inline-flex;align-items:center;gap:5px'><span style='width:10px;height:10px;background:#E0DED9;border-radius:3px;display:inline-block'></span>目標</span></div></div>";
+    }
+
+    if (T.showGarmin && T.garmin && T.garmin.length){
+      const GL = T.garminLabels || {};
+      let rows = '';
+      T.garmin.forEach(function(g){
+        const rd = parseInt(g.ready);
+        const c = (!isNaN(rd)&&rd>=40) ? '#22c55e' : (!isNaN(rd)&&rd>=20) ? '#f59e0b' : '#ef4444';
+        const up = g.status==='UNPRODUCTIVE';
+        rows += "<div style='display:flex;align-items:center;gap:10px;padding:7px 10px;background:#FAFAF8;border-radius:9px'><div style='width:42px;font-size:11.5px;font-weight:700;color:#57534E;flex-shrink:0'>"+esc(g.date)+"</div><div style='width:70px;flex-shrink:0;display:flex;align-items:center;gap:6px'><div style='width:9px;height:9px;border-radius:50%;background:"+c+";flex-shrink:0'></div><span style='font-size:12px;font-weight:800'>"+esc(g.ready)+"</span></div><div style='font-size:11.5px;color:#78716C;flex:1'>睡眠 <strong style='color:#44403C'>"+esc(g.sleep)+"</strong> ・ "+esc(GL.hv)+" "+esc(g.hv)+" ・ 安静時 "+esc(g.rhr)+"</div><div style='font-size:9.5px;font-weight:800;letter-spacing:.04em;border-radius:5px;padding:2px 7px;flex-shrink:0;background:"+(up?'#FEF2F2':'#FEF6E7')+";color:"+(up?'#B91C1C':'#B45309')+"'>"+esc(g.status)+"</div></div>";
+      });
+      const vo2 = T.vo2max ? "<div style='font-size:11px;color:#A8A29E'>VO₂Max "+esc(T.vo2max)+"</div>" : '';
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>コンディション（Garmin・直近6日）</div>"+vo2+"</div><div style='display:flex;flex-direction:column;gap:6px'>"+rows+"</div></div>";
+    }
+
+    if (T.activities && T.activities.length){
+      let acts = '';
+      T.activities.forEach(function(a){
+        const sc = (a.score!=null) ? "<div style='font-size:16px;font-weight:900;color:#D97706'>"+a.score+"</div>" : "<div style='font-size:16px;font-weight:900;color:#57534E'>—</div>";
+        acts += "<div style='border:1px solid #EDECE8;border-radius:11px;overflow:hidden'><div class='rr-actrow' data-act='"+a.id+"' style='display:flex;align-items:center;gap:12px;padding:12px 14px;flex-wrap:wrap;cursor:pointer'><div style='width:52px;flex-shrink:0'><div style='font-size:13px;font-weight:800'>"+esc(a.date)+"</div><div style='font-size:10.5px;color:#A8A29E'>"+esc(a.dow)+"</div></div><span style='"+chipStyle(a.typeLabel)+"'>"+esc(a.typeLabel)+"</span><div style='flex:1;min-width:120px'><div style='font-size:13.5px;font-weight:700'>"+esc(a.name)+"</div><div style='font-size:11.5px;color:#78716C'>"+esc(a.dist)+" ・ "+esc(a.pace)+"/km ・ HR "+esc(a.hr)+"</div></div><div style='text-align:right'>"+sc+"<div style='font-size:10px;color:#A8A29E'>スコア</div></div></div><div class='rr-detail' data-detail='"+a.id+"' style='display:none;padding:0 14px 14px'>"+a.detailHtml+"</div></div>";
+      });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:12px'>今月のアクティビティ</div><div style='display:flex;flex-direction:column;gap:8px'>"+acts+"</div></div>";
+    } else {
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:8px'>今月のアクティビティ</div><div style='font-size:12.5px;color:#A8A29E'>この月の記録はまだありません。</div></div>";
+    }
+    el.innerHTML = h;
+    el.querySelectorAll('[data-goto]').forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); setTab(a.getAttribute('data-goto')); }); });
+    el.querySelectorAll('.rr-actrow').forEach(function(row){ row.addEventListener('click', function(){
+      const id = row.getAttribute('data-act');
+      const det = el.querySelector("[data-detail='"+id+"']");
+      if (!det) return;
+      const show = det.style.display === 'none';
+      det.style.display = show ? 'block' : 'none';
+      if (show){ const a = T.activities.find(function(x){ return x.id===id; }); if (a && a.mapCoords) initMap(a); }
+    }); });
+  }
+
+  // ---------- プラン ----------
+  function renderPlan(){
+    const el = document.getElementById('tab-plan');
+    let h = '';
+    if (P.days && P.days.length){
+      let doneKm = 0;
+      P.days.forEach(function(d){ if (state.done[d.id]) doneKm += (d.distKm||0); });
+      const tgt = P.targetKm || 0;
+      const pct = tgt ? Math.min(100, Math.round(doneKm/tgt*100)) : 0;
+      let rows = '';
+      P.days.forEach(function(d){
+        const done = !!state.done[d.id];
+        rows += "<div style='display:flex;align-items:center;column-gap:10px;row-gap:4px;padding:10px 12px;border-radius:10px;flex-wrap:wrap;background:"+(done?'#FAFAF8':'#fff')+";border:1px solid #EDECE8;opacity:"+(done?'.55':'1')+"'><button data-done='"+d.id+"' style='all:unset;box-sizing:border-box;cursor:pointer;width:22px;height:22px;border-radius:7px;flex-shrink:0;text-align:center;line-height:22px;font-size:13px;font-weight:900;border:1px solid "+(done?'#FC4C02':'#D6D3CE')+";background:"+(done?'#FC4C02':'#fff')+";color:#fff'>"+(done?'✓':'')+"</button><div style='width:56px;flex-shrink:0'><span style='font-size:13px;font-weight:800'>"+esc(d.date)+"</span><span style='font-size:11px;color:#A8A29E;margin-left:4px'>"+esc(d.dow)+"</span></div><span style='"+zoneStyle(d.zone)+"'>"+esc(d.zone)+"</span><div style='width:52px;font-size:13px;font-weight:800;flex-shrink:0;text-align:right'>"+esc(d.dist)+"</div><div style='flex:1;min-width:160px;font-size:12px;color:#78716C;line-height:1.6'>"+esc(d.desc)+"</div></div>";
+      });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px'><div style='font-size:15px;font-weight:900'>"+esc(P.title)+"</div><div style='font-size:12px;color:#78716C'>"+esc(P.subtitle||'')+"</div></div><div style='display:flex;align-items:center;gap:10px;margin:10px 0 14px'><div style='flex:1;height:8px;background:#EDECE8;border-radius:4px;overflow:hidden'><div style='height:8px;width:"+pct+"%;background:#FC4C02;border-radius:4px'></div></div><div style='font-size:12px;font-weight:700;color:#78716C'>"+doneKm.toFixed(0)+" / "+tgt.toFixed(0)+"km</div></div><div style='display:flex;flex-direction:column;gap:6px'>"+rows+"</div><div style='margin-top:14px;background:#FFF9F5;border:1px solid #FFE1CF;border-radius:11px;padding:12px 14px;font-size:12px;color:#9A3412;line-height:1.8'>"+esc(P.note)+"</div></div>";
+    } else {
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>プラン</div><div style='font-size:12.5px;color:#78716C;margin-top:8px;line-height:1.7'>"+esc(P.note)+"</div></div>";
+    }
+    if (P.months && P.months.length){
+      let wk = '';
+      P.months.forEach(function(w){
+        const open = state.openWeek === w.num;
+        let days = '';
+        w.days.forEach(function(d){
+          days += "<div style='display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:#fff;border:1px solid #EDECE8;border-radius:9px;flex-wrap:wrap'><div style='width:56px;flex-shrink:0;padding-top:2px'><span style='font-size:12.5px;font-weight:800'>"+esc(d.date)+"</span><span style='font-size:10.5px;color:#A8A29E;margin-left:4px'>"+esc(d.dow)+"</span></div><span style='"+zoneStyle(d.zone)+"'>"+esc(d.zone)+"</span><div style='width:48px;font-size:12.5px;font-weight:800;flex-shrink:0;text-align:right;padding-top:2px'>"+esc(d.dist)+"</div><div style='flex:1;min-width:150px;font-size:11.5px;color:#78716C;line-height:1.6'>"+esc(d.desc)+"</div></div>";
+        });
+        wk += "<div style='background:#FAFAF8;border-radius:11px;overflow:hidden;border:"+(w.current?'1.5px solid #FC4C02':'1px solid #EDECE8')+"'><button data-week='"+w.num+"' style='all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;cursor:pointer'><div style='font-size:11px;font-weight:900;border-radius:7px;padding:4px 8px;flex-shrink:0;background:"+(w.current?'#FC4C02':'#E7E5E1')+";color:"+(w.current?'#fff':'#78716C')+";white-space:nowrap'>"+esc(w.numLabel)+"</div><div style='flex:1;min-width:0'><div style='font-size:13px;font-weight:800'>"+esc(w.theme)+"</div><div style='font-size:11px;color:#78716C'>"+esc(w.range)+"</div></div><div style='font-size:13px;font-weight:800;color:#57534E;white-space:nowrap'>"+esc(w.target)+"</div><div style='font-size:11px;color:#A8A29E'>"+(open?'▲':'▼')+"</div></button>"+(open?("<div style='padding:0 14px 12px;display:flex;flex-direction:column;gap:5px'>"+days+"</div>"):'')+"</div>";
+      });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:4px'>"+esc(M.monthLabel)+"の月間プラン</div><div style='display:flex;flex-direction:column;gap:8px;margin-top:10px'>"+wk+"</div></div>";
+    }
+    el.innerHTML = h;
+    el.querySelectorAll('[data-done]').forEach(function(b){ b.addEventListener('click', function(){
+      const id = b.getAttribute('data-done');
+      state.done[id] = !state.done[id];
+      try { localStorage.setItem(DONE_KEY, JSON.stringify(state.done)); } catch(e){}
+      renderPlan();
+    }); });
+    el.querySelectorAll('[data-week]').forEach(function(b){ b.addEventListener('click', function(){
+      const n = parseInt(b.getAttribute('data-week'));
+      state.openWeek = (state.openWeek===n) ? 0 : n;
+      renderPlan();
+    }); });
+  }
+
+  // ---------- AIコーチ ----------
+  function renderCoach(){
+    const el = document.getElementById('tab-coach');
+    const v = C.verdict;
+    let pts = '';
+    (v.points||[]).forEach(function(p){ pts += "<div style='display:flex;gap:8px'><span style='color:"+p.color+";font-weight:800'>"+esc(p.sym)+"</span><span>"+esc(p.text)+"</span></div>"; });
+    let h = "<div style='background:#1C1917;color:#fff;border-radius:14px;padding:20px'><div style='font-size:11px;font-weight:800;color:#A8A29E;letter-spacing:.1em;margin-bottom:10px'>"+esc(v.kicker)+"</div><div style='font-size:17px;font-weight:800;line-height:1.6;margin-bottom:"+(pts?'14px':'0')+"'>"+esc(v.headline)+"</div>"+(pts?("<div style='display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:#D6D3CE;line-height:1.7'>"+pts+"</div>"):'')+"</div>";
+    (C.sections||[]).forEach(function(s){
+      const open = (s.id in state.openCoach) ? state.openCoach[s.id] : !!s.open;
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;overflow:hidden'><button data-coach='"+s.id+"' style='all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:15px 18px;cursor:pointer'><div style='font-size:14px;font-weight:800;flex:1'>"+esc(s.title)+"</div><div style='font-size:11px;color:#A8A29E;white-space:nowrap'>"+esc(s.meta||'')+"</div><div style='font-size:11px;color:#A8A29E'>"+(open?'▲':'▼')+"</div></button>"+(open?("<div class='rr-coachbody' style='padding:0 18px 18px;font-size:13px;color:#44403C;line-height:1.85'>"+s.body+"</div>"):'')+"</div>";
+    });
+    if (C.keypoints && C.keypoints.length){
+      let kp = '';
+      C.keypoints.forEach(function(t,i){ kp += "<div style='display:flex;gap:12px'><div style='width:22px;height:22px;border-radius:7px;background:#FC4C02;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0'>"+(i+1)+"</div><div style='font-size:12.5px;line-height:1.7;color:#44403C'>"+esc(t)+"</div></div>"; });
+      h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:12px'>"+esc(M.monthLabel)+"のキーポイント</div><div style='display:flex;flex-direction:column;gap:10px'>"+kp+"</div></div>";
+    }
+    let pz = '';
+    C.paceZones.forEach(function(z){ pz += "<div style='display:flex;align-items:center;gap:12px;padding:8px 12px;background:#FAFAF8;border-radius:9px'><span style='background:"+z.color+";color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:3px 9px;width:88px;text-align:center;flex-shrink:0'>"+esc(z.zone)+"</span><div style='font-size:13.5px;font-weight:800;width:104px'>"+esc(z.pace)+"</div><div style='font-size:11.5px;color:#78716C'>"+esc(z.desc)+"</div></div>"; });
+    h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>練習ペース目安（VDOT "+C.vdot+" 基準）</div><div style='display:flex;flex-direction:column;gap:6px;margin-top:12px'>"+pz+"</div></div>";
+    el.innerHTML = h;
+    el.querySelectorAll('[data-coach]').forEach(function(b){ b.addEventListener('click', function(){
+      const id = b.getAttribute('data-coach');
+      const cur = (id in state.openCoach) ? state.openCoach[id] : false;
+      state.openCoach[id] = !cur;
+      renderCoach();
+    }); });
+  }
+
+  // ---------- 記録 ----------
+  function renderRecords(){
+    const el = document.getElementById('tab-records');
+    let cards = '';
+    R.pbs.forEach(function(p){
+      const ok = p.ok;
+      cards += "<div style='background:"+(ok?'#F7FBF7':'#FAFAF8')+";border-radius:11px;padding:12px 14px;border:1px solid "+(ok?'#D3EBD8':'#EDECE8')+"'><div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px'><div style='font-size:11px;font-weight:800;color:#78716C;letter-spacing:.06em'>"+esc(p.dist)+"</div><div style='font-size:10px;font-weight:800;color:"+(ok?'#15803D':'#78716C')+"'>"+esc(p.badge)+"</div></div><div style='font-size:20px;font-weight:900;letter-spacing:-.01em;margin-bottom:2px'>"+esc(p.time)+"</div><div style='font-size:10.5px;color:#A8A29E;margin-bottom:8px'>"+esc(p.date)+"</div><div style='height:5px;background:#EDECE8;border-radius:3px;overflow:hidden'><div style='height:5px;width:"+Math.max(p.pct,3)+"%;border-radius:3px;background:"+(ok?'#22c55e':'#A8A29E')+"'></div></div><div style='font-size:10px;color:#A8A29E;margin-top:5px'>基準 "+esc(p.target)+"</div></div>";
+    });
+    const focus = R.focus ? "<div style='font-size:11px;color:#A8A29E;margin-bottom:14px'>📌 次の重点距離：<strong style='color:#57534E'>"+esc(R.focus)+"</strong></div>" : '';
+    let h = "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em'>PB 階段（距離別自己ベスト）</div><div style='font-size:11px;color:#A8A29E'>Sub 3:10 相当と比較</div></div>"+focus+"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px'>"+cards+"</div></div>";
+    const vd = R.vdot;
+    h += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px'><div style='font-size:12px;font-weight:800;color:#78716C;letter-spacing:.08em;margin-bottom:18px'>VDOT 進捗 — Sub 3:00 への道</div><div style='position:relative;height:10px;background:linear-gradient(90deg,#E0DED9 0%,#93B4F5 60%,#F5C063 73%,#F08A8A 100%);border-radius:5px;margin:0 8px'><div style='position:absolute;left:0%;top:16px;font-size:10.5px;color:#78716C;transform:translateX(-4px)'>VDOT "+vd.pbVdot+"<br><span style='font-weight:700'>PB "+esc(vd.pbStr)+"</span></div><div style='position:absolute;left:"+vd.markerPct+"%;top:-30px;transform:translateX(-50%);text-align:center'><div style='font-size:10.5px;font-weight:900;color:#2563EB;white-space:nowrap'>現在 "+vd.current+"</div></div><div style='position:absolute;left:"+vd.markerPct+"%;top:-6px;transform:translateX(-50%);width:22px;height:22px;background:#fff;border:4px solid #2563EB;border-radius:50%'></div><div style='position:absolute;left:73%;top:16px;transform:translateX(-50%);font-size:10.5px;color:#B45309;text-align:center;white-space:nowrap'>VDOT 59<br><span style='font-weight:800'>Sub 3:10</span></div><div style='position:absolute;right:0;top:16px;font-size:10.5px;color:#B91C1C;text-align:right;white-space:nowrap'>VDOT 63<br><span style='font-weight:800'>Sub 3:00</span></div></div><div style='height:48px'></div><div style='background:#FAFAF8;border-radius:11px;padding:14px 16px;font-size:12.5px;color:#57534E;line-height:1.9'><strong style='color:#1C1917'>Sub 3:00 への 3 つの柱</strong><br>① 週間走行量 <strong>70〜80km</strong>（現在 ~50km）<br>② 月2回以上の <strong>30km ロング走</strong><br>③ 週1回の <strong>テンポ走 or インターバル</strong></div></div>";
+    let tg = '';
+    R.targets.forEach(function(t){ tg += "<div style='background:#fff;border:1px solid #E7E5E1;border-radius:14px;padding:18px;text-align:center'><div style='font-size:11px;font-weight:800;color:#78716C;letter-spacing:.1em;margin-bottom:6px'>"+esc(t.kicker)+"</div><div style='font-size:30px;font-weight:900;color:"+t.color+"'>"+esc(t.value)+"</div><div style='font-size:11.5px;color:#A8A29E;margin-top:4px'>"+esc(t.sub)+"</div></div>"; });
+    h += "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px'>"+tg+"</div>";
+    el.innerHTML = h;
+  }
+
+  function initMap(a){
+    if (!a.mapCoords || mapInited[a.id]) return;
+    if (typeof L === 'undefined') return;
+    try {
+      const m = L.map(a.mapId, { zoomControl:true, attributionControl:false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+      const poly = L.polyline(a.mapCoords, { color:a.mapColor||'#FC4C02', weight:3, opacity:0.85 }).addTo(m);
+      m.fitBounds(poly.getBounds(), { padding:[12,12] });
+      L.circleMarker(a.mapCoords[0], { radius:6,color:'#fff',fillColor:'#22c55e',fillOpacity:1,weight:2 }).addTo(m);
+      L.circleMarker(a.mapCoords[a.mapCoords.length-1], { radius:6,color:'#fff',fillColor:'#ef4444',fillOpacity:1,weight:2 }).addTo(m);
+      mapInited[a.id] = true;
+      setTimeout(function(){ m.invalidateSize(); }, 60);
+    } catch(e){}
+  }
+
+  function setTab(tab){
+    if (TABS.indexOf(tab) < 0) tab = 'today';
+    state.tab = tab;
+    try { localStorage.setItem('rr2-tab', tab); } catch(e){}
+    if (location.hash !== '#'+tab){ try { history.replaceState(null,'','#'+tab); } catch(e){ location.hash = tab; } }
+    document.querySelectorAll('.rr-tab').forEach(function(b){
+      const active = b.getAttribute('data-tab') === tab;
+      b.style.color = active ? '#1C1917' : '#78716C';
+      b.style.borderBottom = active ? '3px solid #FC4C02' : '3px solid transparent';
+    });
+    TABS.forEach(function(k){ document.getElementById('tab-'+k).style.display = (k===tab) ? 'flex' : 'none'; });
+  }
+
+  renderToday(); renderPlan(); renderCoach(); renderRecords();
+  document.querySelectorAll('.rr-tab').forEach(function(b){ b.addEventListener('click', function(){ setTab(b.getAttribute('data-tab')); }); });
+  window.addEventListener('hashchange', function(){ const t = (location.hash||'').replace('#',''); if (TABS.indexOf(t)>=0 && t!==state.tab) setTab(t); });
+  let start = (location.hash||'').replace('#','');
+  if (TABS.indexOf(start) < 0){ try { start = localStorage.getItem('rr2-tab') || 'today'; } catch(e){ start = 'today'; } }
+  setTab(start);
+
+  // スクロールでヘッダーを折りたたむ（モバイルで面積を圧縮。ヒステリシスでちらつき防止）
+  (function(){
+    const header = document.querySelector('.rr-header');
+    if (!header) return;
+    let collapsed = false, ticking = false;
+    function apply(){
+      ticking = false;
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const want = collapsed ? (y > 60) : (y > 110);
+      if (want !== collapsed){ collapsed = want; header.classList.toggle('rr-collapsed', collapsed); }
+    }
+    window.addEventListener('scroll', function(){
+      if (!ticking){ ticking = true; window.requestAnimationFrame(apply); }
+    }, { passive: true });
+    apply();
+  })();
+})();
+
+</script>
+</body>
+</html>
